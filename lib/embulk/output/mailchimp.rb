@@ -10,11 +10,14 @@ module Embulk
 
       def self.transaction(config, schema, count, &control)
         task = {
-          apikey:            config.param("apikey", :string),
-          list_id:           config.param("list_id", :string),
-          double_optin:      config.param("double_optin", :bool, default: true),
-          update_existing:   config.param("update_existing", :bool, default: false),
-          replace_interests: config.param("replace_interests", :bool, default: true),
+          apikey:            config.param("apikey",            :string),
+          list_id:           config.param("list_id",           :string),
+          double_optin:      config.param("double_optin",      :bool,   default: true),
+          update_existing:   config.param("update_existing",   :bool,   default: false),
+          replace_interests: config.param("replace_interests", :bool,   default: true),
+          email_column:      config.param("email_column",      :string, default: "email"),
+          fname_column:      config.param("fname_column",      :string, default: "fname"),
+          lname_column:      config.param("lname_column",      :string, default: "lname"),
         }
 
         task_reports = yield(task)
@@ -28,6 +31,9 @@ module Embulk
         @double_optin      = task[:double_optin]
         @update_existing   = task[:update_existing]
         @replace_interests = task[:replace_interests]
+        @email_column      = task[:email_column]
+        @fname_column      = task[:fname_column]
+        @lname_column      = task[:lname_column]
         @subscribers       = []
       end
 
@@ -57,15 +63,16 @@ module Embulk
       private
 
       def add_subscriber(row)
-        return unless row['email'] # TODO raise ??
+        return unless row[@email_column] # TODO raise ??
 
-        merge_vars = %w(lname fname).each_with_object({}) do |col_name, m|
-          m[col_name] = row[col_name] if row[col_name]
+        merge_columns = {fname: @fname_column, lname: @lname_column}
+        merge_vars = merge_columns.each_with_object({}) do |(key, col_name), m|
+          m[key] = row[col_name] if row[col_name]
         end
 
         @subscribers << {
           EMAIL: {
-            email: row['email']
+            email: row[@email_column]
           },
           merge_vars: merge_vars,
         }
