@@ -1,0 +1,1 @@
+# embulkt-output-mailchimp
