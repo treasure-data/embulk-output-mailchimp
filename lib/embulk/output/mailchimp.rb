@@ -10,9 +10,11 @@ module Embulk
 
       def self.transaction(config, schema, count, &control)
         task = {
-          apikey:       config.param("apikey", :string),
-          list_id:      config.param("list_id", :string),
-          double_optin: config.param("double_optin", :bool, default: true),
+          apikey:            config.param("apikey", :string),
+          list_id:           config.param("list_id", :string),
+          double_optin:      config.param("double_optin", :bool, default: true),
+          update_existing:   config.param("update_existing", :bool, default: false),
+          replace_interests: config.param("replace_interests", :bool, default: true),
         }
 
         task_reports = yield(task)
@@ -21,10 +23,12 @@ module Embulk
       end
 
       def init
-        @client       = ::Mailchimp::API.new(task[:apikey])
-        @list_id      = task[:list_id]
-        @double_optin = task[:double_optin]
-        @subscribers  = []
+        @client            = ::Mailchimp::API.new(task[:apikey])
+        @list_id           = task[:list_id]
+        @double_optin      = task[:double_optin]
+        @update_existing   = task[:update_existing]
+        @replace_interests = task[:replace_interests]
+        @subscribers       = []
       end
 
       def close
@@ -68,10 +72,14 @@ module Embulk
       end
 
       def flush_subscribers!
+        return if @subscribers.empty?
+
         @client.lists.batch_subscribe(
           @list_id,
           @subscribers,
-          @double_optin
+          @double_optin,
+          @update_existing,
+          @replace_interests
         )
 
         @subscribers = []
