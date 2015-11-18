@@ -35,6 +35,7 @@ module Embulk
           lname_column:           config.param("lname_column",           :string,  default: "lname"),
           retry_limit:            config.param("retry_limit",            :integer, default: 5),
           retry_initial_wait_sec: config.param("retry_initial_wait_sec", :integer, default: 1),
+          stop_on_invalid_record: config.param("stop_on_invalid_record", :bool,    default: true),
         }
 
         Client.new(task[:apikey]) # NOTE for validate apikey
@@ -63,6 +64,7 @@ module Embulk
           config.log_level = nil
           config.dont_rescues = [Embulk::ConfigError, Embulk::DataError]
         end
+        @stop_on_invalid_record = task[:stop_on_invalid_record]
       end
 
       def close
@@ -71,8 +73,15 @@ module Embulk
       def add(page)
         # output code:
         page.each do |record|
-          add_subscriber Hash[schema.names.zip(record)]
-          flush_subscribers! unless @subscribers.size < MAX_EMAIL_COUNT
+          row = Hash[schema.names.zip(record)]
+
+          if row[@email_column]
+            add_subscriber row
+
+            flush_subscribers! unless @subscribers.size < MAX_EMAIL_COUNT
+          else
+            raise Embulk::DataError.new("#{@email_column} is empty") if @stop_on_invalid_record
+          end
         end
       end
 
