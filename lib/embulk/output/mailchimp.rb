@@ -33,6 +33,7 @@ module Embulk
         }
 
         Client.new(task[:apikey]) # NOTE for validate apikey
+        raise Embulk::DataError.new("schema has no '#{task[:email_column]}' column") if schema.none? {|s| s.name == task[:email_column] }
 
         task_reports = yield(task)
         next_config_diff = {}
