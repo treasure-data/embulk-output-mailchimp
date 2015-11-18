@@ -6,6 +6,18 @@ module Embulk
     class Mailchimp < OutputPlugin
       Plugin.register_output("mailchimp", self)
 
+      class Client
+        def initialize(apikey)
+          @client = ::Mailchimp::API.new(apikey)
+        rescue ::Mailchimp::InvalidApiKeyError => e
+          raise Embulk::ConfigError.new(e.message)
+        end
+
+        def batch_subscribe_list(list_id, subscribers, double_optin, update_existing, replace_interests)
+          @client.lists.batch_subscribe(list_id, subscribers, double_optin, update_existing, replace_interests)
+        end
+      end
+
       MAX_EMAIL_COUNT = 1_000_000
 
       def self.transaction(config, schema, count, &control)
@@ -20,13 +32,15 @@ module Embulk
           lname_column:      config.param("lname_column",      :string, default: "lname"),
         }
 
+        Client.new(task[:apikey]) # NOTE for validate apikey
+
         task_reports = yield(task)
         next_config_diff = {}
         return next_config_diff
       end
 
       def init
-        @client            = ::Mailchimp::API.new(task[:apikey])
+        @client            = Client.new(task[:apikey])
         @list_id           = task[:list_id]
         @double_optin      = task[:double_optin]
         @update_existing   = task[:update_existing]
@@ -81,7 +95,7 @@ module Embulk
       def flush_subscribers!
         return if @subscribers.empty?
 
-        @client.lists.batch_subscribe(
+        @client.batch_subscribe_list(
           @list_id,
           @subscribers,
           @double_optin,
