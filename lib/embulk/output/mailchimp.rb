@@ -1,4 +1,5 @@
 require 'mailchimp'
+require 'perfect_retry'
 
 module Embulk
   module Output
@@ -15,6 +16,8 @@ module Embulk
 
         def batch_subscribe_list(list_id, subscribers, double_optin, update_existing, replace_interests)
           @client.lists.batch_subscribe(list_id, subscribers, double_optin, update_existing, replace_interests)
+        rescue ::Mailchimp::Error => e
+          raise Embulk::DataError.new(e.message)
         end
       end
 
@@ -22,14 +25,16 @@ module Embulk
 
       def self.transaction(config, schema, count, &control)
         task = {
-          apikey:            config.param("apikey",            :string),
-          list_id:           config.param("list_id",           :string),
-          double_optin:      config.param("double_optin",      :bool,   default: true),
-          update_existing:   config.param("update_existing",   :bool,   default: false),
-          replace_interests: config.param("replace_interests", :bool,   default: true),
-          email_column:      config.param("email_column",      :string, default: "email"),
-          fname_column:      config.param("fname_column",      :string, default: "fname"),
-          lname_column:      config.param("lname_column",      :string, default: "lname"),
+          apikey:                 config.param("apikey",                 :string),
+          list_id:                config.param("list_id",                :string),
+          double_optin:           config.param("double_optin",           :bool,    default: true),
+          update_existing:        config.param("update_existing",        :bool,    default: false),
+          replace_interests:      config.param("replace_interests",      :bool,    default: true),
+          email_column:           config.param("email_column",           :string,  default: "email"),
+          fname_column:           config.param("fname_column",           :string,  default: "fname"),
+          lname_column:           config.param("lname_column",           :string,  default: "lname"),
+          retry_limit:            config.param("retry_limit",            :integer, default: 5),
+          retry_initial_wait_sec: config.param("retry_initial_wait_sec", :integer, default: 1),
         }
 
         Client.new(task[:apikey]) # NOTE for validate apikey
@@ -50,6 +55,14 @@ module Embulk
         @fname_column      = task[:fname_column]
         @lname_column      = task[:lname_column]
         @subscribers       = []
+
+        @retry_manager = PerfectRetry.new do |config|
+          config.limit = task[:retry_limit]
+          config.sleep = lambda{|n| task[:retry_initial_wait_sec] * (2 ** (n - 1)) }
+          config.logger = Embulk.logger
+          config.log_level = nil
+          config.dont_rescues = [Embulk::ConfigError, Embulk::DataError]
+        end
       end
 
       def close
@@ -96,13 +109,15 @@ module Embulk
       def flush_subscribers!
         return if @subscribers.empty?
 
-        @client.batch_subscribe_list(
-          @list_id,
-          @subscribers,
-          @double_optin,
-          @update_existing,
-          @replace_interests
-        )
+        @retry_manager.with_retry do
+          @client.batch_subscribe_list(
+            @list_id,
+            @subscribers,
+            @double_optin,
+            @update_existing,
+            @replace_interests
+          )
+        end
 
         @subscribers = []
       end
