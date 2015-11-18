@@ -6,7 +6,7 @@ module Embulk
     class Mailchimp < OutputPlugin
       Plugin.register_output("mailchimp", self)
 
-      MAX_EMAIL_SIZE = 1_000_000
+      MAX_EMAIL_COUNT = 1_000_000
 
       def self.transaction(config, schema, count, &control)
         task = {
@@ -44,7 +44,7 @@ module Embulk
         # output code:
         page.each do |record|
           add_subscriber Hash[schema.names.zip(record)]
-          flush_subscribers! unless @subscribers.size < MAX_EMAIL_SIZE
+          flush_subscribers! unless @subscribers.size < MAX_EMAIL_COUNT
         end
       end
 
