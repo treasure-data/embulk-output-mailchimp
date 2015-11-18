@@ -16,6 +16,9 @@ module Embulk
 
         def batch_subscribe_list(list_id, subscribers, double_optin, update_existing, replace_interests)
           @client.lists.batch_subscribe(list_id, subscribers, double_optin, update_existing, replace_interests)
+        rescue ::Mailchimp::UserUnderMaintenanceError, ::Mailchimp::TooManyConnectionsError => e
+          Embulk.logger.warn e.message
+          raise e
         rescue ::Mailchimp::Error => e
           raise Embulk::DataError.new(e.message)
         end
