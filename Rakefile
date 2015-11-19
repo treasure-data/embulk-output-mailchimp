@@ -16,3 +16,8 @@ task 'reload' do
   Rake::Task['build'].execute
   sh "embulk gem install pkg/#{spec.name}-#{spec.version}.gem"
 end
+
+desc 'Run tests'
+task :test do
+  ruby("test/run-test.rb", "--use-color=yes", "--collector=dir")
+end

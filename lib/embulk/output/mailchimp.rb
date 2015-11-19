@@ -77,7 +77,6 @@ module Embulk
         # output code:
         page.each do |record|
           row = Hash[schema.names.zip(record)]
-
           if row[@email_column]
             add_subscriber row
 
@@ -103,9 +102,10 @@ module Embulk
       private
 
       def add_subscriber(row)
-        return unless row[@email_column] # TODO raise ??
+        return unless row[@email_column]
 
         merge_columns = {fname: @fname_column, lname: @lname_column}
+
         merge_vars = merge_columns.each_with_object({}) do |(key, col_name), m|
           m[key] = row[col_name] if row[col_name]
         end
@@ -121,6 +121,11 @@ module Embulk
       def flush_subscribers!
         return if @subscribers.empty?
 
+        send_subscribers!
+        @subscribers = []
+      end
+
+      def send_subscribers!
         @retry_manager.with_retry do
           @client.batch_subscribe_list(
             @list_id,
@@ -130,8 +135,6 @@ module Embulk
             @replace_interests
           )
         end
-
-        @subscribers = []
       end
     end
 
