@@ -1,5 +1,9 @@
 language: jruby
 before_install:
+    - rvm get head --auto-dotfiles
+    - rvm install jruby-9.0.1.0
+    - gem install bundler
     - gem update bundler
+    - bundle install
 script:
-  - rake test
+  - bundle exec rake cov
