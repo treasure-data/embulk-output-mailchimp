@@ -10,6 +10,15 @@ $LOAD_PATH.unshift(test_dir)
 
 ENV["TEST_UNIT_MAX_DIFF_TARGET_STRING_SIZE"] ||= "5000"
 
+if ENV['CI']
+  require 'simplecov'
+  require 'coveralls'
+  Coveralls.wear!
+
+  SimpleCov.formatter = SimpleCov::Formatter::MultiFormatter[Coveralls::SimpleCov::Formatter]
+  SimpleCov.start 'test_frameworks'
+end
+
 if ENV["COVERAGE"]
   require 'simplecov'
   SimpleCov.start 'test_frameworks'
