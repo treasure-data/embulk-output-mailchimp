@@ -1,4 +1,6 @@
 # Mailchimp output plugin for Embulk
+[![Coverage Status](https://coveralls.io/repos/treasure-data/embulk-output-mailchimp/badge.svg?branch=master&service=github)](https://coveralls.io/github/treasure-data/embulk-output-mailchimp?branch=master)
+[![Build Status](https://travis-ci.org/treasure-data/embulk-output-mailchimp.svg)](https://travis-ci.org/treasure-data/embulk-output-mailchimp?branch=master)
 
 add e-mail to List in MailChimp.
 
