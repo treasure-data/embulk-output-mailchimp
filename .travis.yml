@@ -1,1 +1,3 @@
 language: jruby
+before_install:
+    - gem update bundler
