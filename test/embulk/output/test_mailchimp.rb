@@ -77,6 +77,8 @@ module Embulk
               {name: 'email', type: :string},
               {name: 'fname', type: :string},
               {name: 'lname', type: :string},
+              {name: 'list_group1', type: :string},
+              {name: 'list_group2', type: :string},
             ]),
             1
           )
@@ -85,6 +87,10 @@ module Embulk
         class MergeVars < self
           def page
             [['a@example.com', 'first', 'last']]
+          end
+
+          def page_with_groupings
+            [['a@example.com', 'first', 'last', 'group_1,group_2', 'group_3,group_4']]
           end
 
           def test_stop_on_invalid_record_is_false
@@ -99,6 +105,25 @@ module Embulk
             assert_equal(subscriber[:EMAIL][:email], 'a@example.com')
             assert_equal(subscriber[:merge_vars][:fname], 'first')
             assert_equal(subscriber[:merge_vars][:lname], 'last')
+          end
+
+          def test_grouping_columns
+            mailchimp = create_mailchimp(
+              lname_column: 'lname',
+              fname_column: 'fname',
+              grouping_columns: ['list_group1', 'list_group2']
+            )
+
+            mailchimp.add(page_with_groupings)
+            subscriber = mailchimp.instance_variable_get(:@subscribers)[0]
+
+            assert_equal(
+              subscriber[:merge_vars][:groupings],
+              [
+                {'name' => 'list_group1', 'groups' => %w(group_1 group_2)},
+                {'name' => 'list_group2', 'groups' => %w(group_3 group_4)},
+              ]
+            )
           end
         end
 
