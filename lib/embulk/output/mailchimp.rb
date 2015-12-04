@@ -36,6 +36,7 @@ module Embulk
           email_column:           config.param("email_column",           :string,  default: "email"),
           fname_column:           config.param("fname_column",           :string,  default: "fname"),
           lname_column:           config.param("lname_column",           :string,  default: "lname"),
+          grouping_columns:       config.param("grouping_columns",       :array,   default: nil),
           retry_limit:            config.param("retry_limit",            :integer, default: 5),
           retry_initial_wait_sec: config.param("retry_initial_wait_sec", :integer, default: 1),
           stop_on_invalid_record: config.param("stop_on_invalid_record", :bool,    default: true),
@@ -58,6 +59,7 @@ module Embulk
         @email_column      = task[:email_column]
         @fname_column      = task[:fname_column]
         @lname_column      = task[:lname_column]
+        @grouping_columns  = task[:grouping_columns]
         @subscribers       = []
 
         @retry_manager = PerfectRetry.new do |config|
@@ -108,6 +110,19 @@ module Embulk
 
         merge_vars = merge_columns.each_with_object({}) do |(key, col_name), m|
           m[key] = row[col_name] if row[col_name]
+        end
+
+        if @grouping_columns && !@grouping_columns.empty?
+          merge_vars[:groupings] = []
+
+          @grouping_columns.each do |group|
+            next if row[group].nil? || row[group] == ''
+
+            merge_vars[:groupings] << {
+              'name'   => group,
+              'groups' => row[group].split(','),
+            }
+          end
         end
 
         @subscribers << {

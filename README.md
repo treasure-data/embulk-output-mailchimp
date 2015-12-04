@@ -21,6 +21,7 @@ add e-mail to List in MailChimp.
 - **email_column**: column name for email (string, default: 'email')
 - **fname_column**: column name for first name (string, default: 'fname')
 - **lname_column**: column name for last name(string, default: 'lname')
+- **grouping_columns**: column names array for group name(array, default: nil)
 
 ## Example
 
@@ -35,6 +36,9 @@ out:
   email_column: 'e-mail'
   fname_column: 'first name'
   lname_column: 'lname'
+  grouping_columns:
+  - group_1
+  - group_2
 ```
 
 
