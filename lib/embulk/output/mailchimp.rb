@@ -116,7 +116,7 @@ module Embulk
           merge_vars[:groupings] = []
 
           @grouping_columns.each do |group|
-            next unless row[group]
+            next if row[group].nil? || row[group] == ''
 
             merge_vars[:groupings] << {
               'name'   => group,
