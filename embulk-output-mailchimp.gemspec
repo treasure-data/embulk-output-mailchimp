@@ -1,7 +1,7 @@
 
 Gem::Specification.new do |spec|
   spec.name          = "embulk-output-mailchimp"
-  spec.version       = "0.1.0"
+  spec.version       = "0.2.0"
   spec.authors       = ["takkanm"]
   spec.summary       = "Mailchimp output plugin for Embulk"
   spec.description   = "Dumps records to Mailchimp."
