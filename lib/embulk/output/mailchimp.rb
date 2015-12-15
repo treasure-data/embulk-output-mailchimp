@@ -103,11 +103,22 @@ module Embulk
 
       private
 
+      # NOTE we expect row has #{email_column} column.
+      #      expected full data is following columns.
+      #  | #{email_column} | #{fname_column} | #{lname_column} | #{grouping_columns[0]} | #{grouping_columns[1]…|
+      #  |-----------------|-----------------|-----------------|------------------------|-----------------------|
+      #  | hi@example.com  | first_name      | last_name       | music,book             | middle                |
       def add_subscriber(row)
         return unless row[@email_column]
 
         merge_columns = {fname: @fname_column, lname: @lname_column}
 
+        # NOTE merge_vars can add extra infomation.
+        #      https://apidocs.mailchimp.com/api/2.0/lists/merge-vars.php
+        #      embulk-output-mailchimp can add following infomation
+        #        - lname
+        #        - fname
+        #        - interest group
         merge_vars = merge_columns.each_with_object({}) do |(key, col_name), m|
           m[key] = row[col_name] if row[col_name]
         end

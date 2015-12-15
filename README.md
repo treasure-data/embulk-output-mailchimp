@@ -41,6 +41,9 @@ out:
   - group_2
 ```
 
+## Mailchimp Client
+
+use https://bitbucket.org/mailchimp/mailchimp-api-ruby .
 
 ## Build
 
