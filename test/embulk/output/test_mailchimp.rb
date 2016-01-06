@@ -125,6 +125,28 @@ module Embulk
               ]
             )
           end
+
+          def test_grouping_columns_not_string
+            groups_1 = 42
+            groups_2 = 1.3
+
+            mailchimp = create_mailchimp(
+              lname_column: 'lname',
+              fname_column: 'fname',
+              grouping_columns: ['list_group1', 'list_group2']
+            )
+
+            mailchimp.add([['i@example.com', 'lname', 'fname', groups_1, groups_2]])
+            subscriber = mailchimp.instance_variable_get(:@subscribers)[0]
+
+            assert_equal(
+              subscriber[:merge_vars][:groupings],
+              [
+                {'name' => 'list_group1', 'groups' => [groups_1.to_s] },
+                {'name' => 'list_group2', 'groups' => [groups_2.to_s] },
+              ]
+            )
+          end
         end
 
         # NOTE skip until const mocking
