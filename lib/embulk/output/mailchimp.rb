@@ -129,11 +129,12 @@ module Embulk
           merge_vars[:groupings] = []
 
           @grouping_columns.each do |group|
-            next if row[group].nil? || row[group] == ''
+            groups = row[group].to_s.split(",")
+            next if groups.empty?
 
             merge_vars[:groupings] << {
               'name'   => group,
-              'groups' => row[group].split(','),
+              'groups' => groups,
             }
           end
         end
