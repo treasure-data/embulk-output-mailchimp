@@ -30,7 +30,7 @@ module Embulk
         task = {
           apikey:                 config.param("apikey",                 :string),
           list_id:                config.param("list_id",                :string),
-          double_optin:           config.param("double_optin",           :bool,    default: true),
+          double_optin:           config.param("double_optin",           :bool,    default: false),
           update_existing:        config.param("update_existing",        :bool,    default: false),
           replace_interests:      config.param("replace_interests",      :bool,    default: true),
           email_column:           config.param("email_column",           :string,  default: "email"),
