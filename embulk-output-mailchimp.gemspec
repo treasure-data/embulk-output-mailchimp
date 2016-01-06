@@ -2,10 +2,10 @@
 Gem::Specification.new do |spec|
   spec.name          = "embulk-output-mailchimp"
   spec.version       = "0.2.0"
-  spec.authors       = ["takkanm"]
+  spec.authors       = ["uu59", "takkanm"]
   spec.summary       = "Mailchimp output plugin for Embulk"
   spec.description   = "Dumps records to Mailchimp."
-  spec.email         = ["takkanm@gmail.com"]
+  spec.email         = ["k@uu59.org", "takkanm@gmail.com"]
   spec.licenses      = ["MIT"]
   # TODO set this: spec.homepage      = "https://github.com/takkanm/embulk-output-mailchimp"
 
