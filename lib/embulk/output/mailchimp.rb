@@ -1,6 +1,8 @@
 require 'mailchimp'
 require 'perfect_retry'
 
+require 'securerandom'
+
 module Embulk
   module Output
 
@@ -153,13 +155,16 @@ module Embulk
 
       def send_subscribers!
         @retry_manager.with_retry do
-          @client.batch_subscribe_list(
+          request_id = SecureRandom.uuid
+          Embulk.logger.info "[#{request_id}] Request : #{@subscribers.size} items"
+          res = @client.batch_subscribe_list(
             @list_id,
             @subscribers,
             @double_optin,
             @update_existing,
             @replace_interests
           )
+          Embulk.logger.info "[#{request_id}] Result : #{res.to_s}"
         end
       end
     end
