@@ -26,7 +26,7 @@ module Embulk
         end
       end
 
-      MAX_EMAIL_COUNT = 1_000_000
+      MAX_EMAIL_COUNT = 1_000
 
       def self.transaction(config, schema, count, &control)
         task = {
