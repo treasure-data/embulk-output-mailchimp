@@ -1,3 +1,7 @@
+## 0.2.3 - 2016-03-24
+
+- Retry when Mailchimp server return Internal Server Error [#11](https://github.com/treasure-data/embulk-output-mailchimp/pull/11)
+
 ## 0.2.2 - 2016-01-21
 
 - Changed the threshold of batch size for uploading emails as a request [#9](https://github.com/treasure-data/embulk-output-mailchimp/pull/9)
