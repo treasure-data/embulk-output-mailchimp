@@ -21,8 +21,6 @@ module Embulk
         rescue ::Mailchimp::UserUnderMaintenanceError, ::Mailchimp::TooManyConnectionsError => e
           Embulk.logger.warn e.message
           raise e
-        rescue ::Mailchimp::Error => e
-          raise Embulk::DataError.new(e.message)
         end
       end
 
