@@ -65,6 +65,47 @@ module Embulk
         end
       end
 
+      class TestFinish < self
+        setup do
+          stub(::Mailchimp::API).new(apikey) { }
+
+          @plugin = Mailchimp.new(
+            {
+              apikey: apikey,
+              list_id: list_id,
+              email_column: 'email',
+              retry_limit: retry_limit,
+              retry_initial_wait_sec: 0,
+            },
+            create_schema([
+              {name: 'email', type: :string},
+            ]),
+            1
+          )
+        end
+
+        def retry_limit
+          3
+        end
+
+        def test_retry_on_mailchimp_error
+          client = @plugin.instance_variable_get(:@client)
+          stub(client).batch_subscribe_list(list_id, anything, anything, anything, anything) {
+            # https://bitbucket.org/mailchimp/mailchimp-api-ruby/src/37dbe82057b96e135881c9379c0a3d5f8f32bf1f/lib/mailchimp.rb?at=master&fileviewer=file-view-default#mailchimp.rb-164
+            raise ::Mailchimp::Error, "We received an unexpected error: <!doctype html>"
+          }
+          stub(Embulk.logger).info(anything)
+          mock(Embulk.logger).warn(anything).at_least(retry_limit)
+
+          @plugin.add([
+            ["foo@example.com"]
+          ])
+          assert_raise(PerfectRetry::TooManyRetry) do
+            @plugin.finish
+          end
+        end
+      end
+
       class TestAdd < self
         setup do
           stub(::Mailchimp::API).new(apikey) { }
