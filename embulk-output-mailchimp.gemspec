@@ -7,7 +7,7 @@ Gem::Specification.new do |spec|
   spec.description   = "Dumps records to Mailchimp."
   spec.email         = ["k@uu59.org", "takkanm@gmail.com"]
   spec.licenses      = ["MIT"]
-  # TODO set this: spec.homepage      = "https://github.com/takkanm/embulk-output-mailchimp"
+  spec.homepage      = "https://github.com/treasure-data/embulk-output-mailchimp"
 
   spec.files         = `git ls-files`.split("\n") + Dir["classpath/*.jar"]
   spec.test_files    = spec.files.grep(%r{^(test|spec)/})
