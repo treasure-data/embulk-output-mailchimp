@@ -1,5 +1,6 @@
 package org.embulk.output.mailchimp;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -8,8 +9,8 @@ import org.embulk.base.restclient.jackson.JacksonServiceRecord;
 import org.embulk.base.restclient.record.RecordBuffer;
 import org.embulk.base.restclient.record.ServiceRecord;
 import org.embulk.config.TaskReport;
+import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
-import org.embulk.util.retryhelper.jetty92.Jetty92RetryHelper;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -23,23 +24,20 @@ public class MailchimpRecordBuffer
         extends RecordBuffer
 {
     private static final Logger LOG = Exec.getLogger(MailchimpRecordBuffer.class);
-    private static final int MAX_RECORD_PER_BATCH_REQUEST = 100;
+    private static final int MAX_RECORD_PER_BATCH_REQUEST = 500;
     private final String attributeName;
     private final MailchimpOutputPluginDelegate.PluginTask task;
-    private final Jetty92RetryHelper retryHelper;
     private final MailchimpHttpClient client;
     private final ObjectMapper mapper;
     private int requestCount;
     private long totalCount;
     private List<JsonNode> records;
 
-    public MailchimpRecordBuffer(final String attributeName, final MailchimpOutputPluginDelegate.PluginTask task,
-                                 final Jetty92RetryHelper retryHelper)
+    public MailchimpRecordBuffer(final String attributeName, final MailchimpOutputPluginDelegate.PluginTask task)
     {
         this.attributeName = attributeName;
         this.task = task;
-        this.retryHelper = retryHelper;
-        this.client = new MailchimpHttpClient();
+        this.client = new MailchimpHttpClient(task);
         this.mapper = new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
@@ -84,17 +82,16 @@ public class MailchimpRecordBuffer
             LOG.info("Inserted {} records", records.size());
         }
 
-        this.retryHelper.close();
+        this.client.close();
         return Exec.newTaskReport().set("inserted", totalCount);
     }
 
     private void pushData(final List<JsonNode> data)
     {
-//        try {
-//
-//        }
-//        catch (JsonProcessingException jpe) {
-//            throw new DataException(jpe);
-//        }
+        try {
+            client.push(data, task);
+        } catch (JsonProcessingException jpe) {
+            throw new DataException(jpe);
+        }
     }
 }

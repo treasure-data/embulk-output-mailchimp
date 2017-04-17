@@ -4,3 +4,7 @@
 /.bundle/
 /Gemfile.lock
 /coverage/
+*.gemspec
+.gradle/
+/classpath/
+build/

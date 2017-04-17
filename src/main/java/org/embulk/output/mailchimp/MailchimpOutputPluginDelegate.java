@@ -1,5 +1,6 @@
 package org.embulk.output.mailchimp;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -13,6 +14,7 @@ import org.embulk.config.Config;
 import org.embulk.config.ConfigDefault;
 import org.embulk.config.ConfigDiff;
 import org.embulk.config.TaskReport;
+import org.embulk.output.mailchimp.model.AuthMethod;
 import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.embulk.util.retryhelper.jetty92.Jetty92ClientCreator;
@@ -51,6 +53,16 @@ public class MailchimpOutputPluginDelegate
         @Config("timeout_millis")
         @ConfigDefault("60000")
         int getTimeoutMills();
+
+        @Config("auth_method")
+        @ConfigDefault("\"oauth\"")
+        AuthMethod getAuthMethod();
+
+        @Config("apikey")
+        Optional<String> getApikey();
+
+        @Config("redirect_uri")
+        Optional<String> getRedirectUri();
 
         @Config("client_id")
         String getClientId();
@@ -102,8 +114,7 @@ public class MailchimpOutputPluginDelegate
     @Override
     public RecordBuffer buildRecordBuffer(final PluginTask task)
     {
-        Jetty92RetryHelper retryHelper = createRetryHelper(task);
-        return new MailchimpRecordBuffer("records", task, retryHelper);
+        return new MailchimpRecordBuffer("records", task);
     }
 
     @Override
@@ -128,27 +139,5 @@ public class MailchimpOutputPluginDelegate
         LOG.info("Insert completed. {} records", totalInserted);
 
         return Exec.newConfigDiff();
-    }
-
-    protected Jetty92RetryHelper createRetryHelper(PluginTask task)
-    {
-        return new Jetty92RetryHelper(
-                task.getMaximumRetries(),
-                task.getInitialRetryIntervalMillis(),
-                task.getMaximumRetryIntervalMillis(),
-                new Jetty92ClientCreator()
-                {
-                    @Override
-                    public HttpClient createAndStart()
-                    {
-                        HttpClient client = new HttpClient(new SslContextFactory());
-                        try {
-                            client.start();
-                            return client;
-                        } catch (Exception e) {
-                            throw Throwables.propagate(e);
-                        }
-                    }
-                });
     }
 }
