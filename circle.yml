@@ -13,4 +13,4 @@ test:
 
 notify:
   webhooks:
-    - url: http://td-beda.herokuapp.com/circleci_callback
+    - url: https://td-beda.herokuapp.com/circleci_callback

@@ -14,7 +14,6 @@ import org.eclipse.jetty.client.HttpResponseException;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 import org.eclipse.jetty.client.util.StringContentProvider;
-import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.embulk.config.ConfigException;
@@ -41,7 +40,6 @@ public class MailchimpHttpClient
     private final ObjectMapper jsonMapper = new ObjectMapper()
             .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false)
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    private String accessToken;
     private Jetty92RetryHelper retryHelper;
 
     /**
@@ -113,56 +111,23 @@ public class MailchimpHttpClient
         }
     }
 
+    /**
+     * MailChimp API v3 supports non expires access_token. Then no need refresh_token
+     *
+     * @param task
+     * @return
+     */
     private String getAuthorizationHeader(final MailchimpOutputPluginDelegate.PluginTask task)
     {
         switch (task.getAuthMethod()) {
             case OAUTH:
-                return "OAuth " + retrieveAccessToken(task);
+                return "OAuth " + task.getAccessToken();
             case API_KEY:
                 return "Basic " + Base64Variants.MIME_NO_LINEFEEDS
                         .encode((RandomStringUtils.randomAlphabetic(10) + ":" + task.getApikey()).getBytes());
             default:
-                throw new ConfigException("Not support method");
+                throw new ConfigException("Not supported method");
         }
-    }
-
-    private String retrieveAccessToken(final MailchimpOutputPluginDelegate.PluginTask task)
-    {
-        if (this.accessToken != null) {
-            return this.accessToken;
-        }
-
-        String responseBody = retryHelper.requestWithRetry(
-                new StringJetty92ResponseEntityReader(task.getTimeoutMills()),
-                new Jetty92SingleRequester()
-                {
-                    @Override
-                    public void requestOnce(HttpClient client, Response.Listener responseListener)
-                    {
-                        final StringBuilder stringBuilder = new StringBuilder()
-                                .append("code").append("=").append(task.getRefreshToken()).append("&")
-                                .append("client_id").append("=").append(task.getClientId()).append("&")
-                                .append("client_secret").append("=").append(task.getClientSecret()).append("&")
-                                .append("redirect_uri").append("=").append("https://login.mailchimp.com/").append("&")
-                                .append("grant_type").append("=").append("authorization_code");
-
-                        Request request = client.newRequest("https://login.mailchimp.com/oauth2/token")
-                                .method(HttpMethod.POST)
-                                .content(new StringContentProvider(stringBuilder.toString()))
-                                .header(HttpHeader.CONTENT_TYPE, "application/x-www-form-urlencoded");
-                        request.send(responseListener);
-                    }
-
-                    @Override
-                    protected boolean isResponseStatusToRetry(Response response)
-                    {
-                        return response.getStatus() / 100 != 4;
-                    }
-                }
-        );
-
-        this.accessToken = parseJson(responseBody).get("access_token").asText();
-        return this.accessToken;
     }
 
     private Jetty92RetryHelper createRetryHelper(MailchimpOutputPluginDelegate.PluginTask task)

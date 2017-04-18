@@ -1,1 +1,2 @@
 type: mailchimp
+auth_method: api_key

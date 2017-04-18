@@ -47,38 +47,40 @@ public class TestMailchimpOutputPlugin
     }
 
     @Test(expected = ConfigException.class)
-    public void test_transaction_hasInvalidWithEmptyClientId()
+    public void test_transaction_hasInvalidWithEmptyApiKey()
     {
         ConfigSource config = existsConfig(resourcesPath,
                                            baseConfig)
-                .set("client_secret", null);
+                .set("apikey", "");
         doSetUpSchemaAndRun(config, plugin);
     }
 
     @Test(expected = ConfigException.class)
-    public void test_transaction_hasInvalidWithNullClientId()
+    public void test_transaction_hasInvalidWithNullApiKey()
     {
         ConfigSource config = existsConfig(resourcesPath,
                                            baseConfig)
-                .set("client_id", null);
+                .set("apikey", null);
         doSetUpSchemaAndRun(config, plugin);
     }
 
     @Test(expected = ConfigException.class)
-    public void test_transaction_hasInvalidWithEmptyClientSecret()
+    public void test_transaction_hasInvalidWithEmptyAccessToken()
     {
         ConfigSource config = existsConfig(resourcesPath,
                                            baseConfig)
-                .set("client_secret", "");
+                .set("auth_method", "oauth")
+                .set("access_token", "");
         doSetUpSchemaAndRun(config, plugin);
     }
 
     @Test(expected = ConfigException.class)
-    public void test_transaction_hasInvalidWithNullClientSecret()
+    public void test_transaction_hasInvalidWithNullAccessToken()
     {
         ConfigSource config = existsConfig(resourcesPath,
                                            baseConfig)
-                .set("client_secret", null);
+                .set("auth_method", "oauth")
+                .set("access_token", null);
         doSetUpSchemaAndRun(config, plugin);
     }
 }

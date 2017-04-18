@@ -1,9 +1,6 @@
 package org.embulk.output.mailchimp;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
-import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.embulk.base.restclient.RestClientOutputPluginDelegate;
 import org.embulk.base.restclient.RestClientOutputTaskBase;
 import org.embulk.base.restclient.jackson.JacksonServiceRequestMapper;
@@ -13,15 +10,17 @@ import org.embulk.base.restclient.record.RecordBuffer;
 import org.embulk.config.Config;
 import org.embulk.config.ConfigDefault;
 import org.embulk.config.ConfigDiff;
+import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
 import org.embulk.output.mailchimp.model.AuthMethod;
 import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
-import org.embulk.util.retryhelper.jetty92.Jetty92ClientCreator;
-import org.embulk.util.retryhelper.jetty92.Jetty92RetryHelper;
 import org.slf4j.Logger;
 
 import java.util.List;
+
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.embulk.output.mailchimp.validation.ColumnDataValidator.checkRequiredColumns;
 
 /**
  * Created by thangnc on 4/14/17.
@@ -61,17 +60,8 @@ public class MailchimpOutputPluginDelegate
         @Config("apikey")
         Optional<String> getApikey();
 
-        @Config("redirect_uri")
-        Optional<String> getRedirectUri();
-
-        @Config("client_id")
-        String getClientId();
-
-        @Config("client_secret")
-        String getClientSecret();
-
-        @Config("refresh_token")
-        String getRefreshToken();
+        @Config("access_token")
+        Optional<String> getAccessToken();
 
         @Config("list_id")
         String getListId();
@@ -108,7 +98,24 @@ public class MailchimpOutputPluginDelegate
     @Override
     public void validateOutputTask(final PluginTask task, final Schema schema, final int taskCount)
     {
+        if (task.getAuthMethod() == AuthMethod.OAUTH) {
+            if (!task.getAccessToken().isPresent()) {
+                throw new ConfigException("'access_token' is required when auth_method is 'oauth'");
+            }
+            else if (task.getAuthMethod() == AuthMethod.API_KEY) {
+                if (!task.getApikey().isPresent()) {
+                    throw new ConfigException("'apikey' is required when auth_method is 'api_key'");
+                }
+            }
+        }
 
+        if (isNullOrEmpty(task.getListId())) {
+            throw new ConfigException("'list_id' must not be null or empty string");
+        }
+
+        if (!checkRequiredColumns(schema, "email", "status")) {
+            throw new ConfigException("Columns ['email', 'status'] must not be null or empty string");
+        }
     }
 
     @Override
