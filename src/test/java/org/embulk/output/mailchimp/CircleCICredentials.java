@@ -15,8 +15,8 @@ public class CircleCICredentials
     public static ConfigSource credentials()
     {
         return EmbulkEmbed.newSystemConfigLoader().newConfigSource()
-                .set("client_id", System.getenv("MAILCHIMP_CLIENT_ID"))
-                .set("client_secret", System.getenv("MAILCHIMP_CLIENT_SECRET"))
-                .set("code", System.getenv("MAILCHIMP_CODE"));
+                .set("apikey", System.getenv("MAILCHIMP_APIKEY"))
+                .set("access_token", System.getenv("MAILCHIMP_ACCESS_TOKEN"))
+                .set("list_id", System.getenv("MAILCHIMP_LIST_ID"));
     }
 }

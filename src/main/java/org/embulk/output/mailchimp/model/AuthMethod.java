@@ -52,7 +52,7 @@ public enum AuthMethod
         }
 
         throw new ConfigException(
-                String.format("Unknown target '%s'. Supported targets are [apikey, oauth]",
+                String.format("Unknown target '%s'. Supported targets are [api_key, oauth]",
                               type));
     }
 }

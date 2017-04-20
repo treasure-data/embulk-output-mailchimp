@@ -11,6 +11,7 @@ import org.embulk.base.restclient.record.ServiceRecord;
 import org.embulk.config.TaskReport;
 import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
+import org.embulk.spi.Schema;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -20,24 +21,27 @@ import java.util.List;
 /**
  * Created by thangnc on 4/14/17.
  */
-public class MailchimpRecordBuffer
+public class MailChimpRecordBuffer
         extends RecordBuffer
 {
-    private static final Logger LOG = Exec.getLogger(MailchimpRecordBuffer.class);
+    private static final Logger LOG = Exec.getLogger(MailChimpRecordBuffer.class);
     private static final int MAX_RECORD_PER_BATCH_REQUEST = 500;
     private final String attributeName;
-    private final MailchimpOutputPluginDelegate.PluginTask task;
-    private final MailchimpHttpClient client;
+    private final MailChimpOutputPluginDelegate.PluginTask task;
+    private final Schema schema;
+    private final MailChimpHttpClient client;
     private final ObjectMapper mapper;
     private int requestCount;
     private long totalCount;
     private List<JsonNode> records;
 
-    public MailchimpRecordBuffer(final String attributeName, final MailchimpOutputPluginDelegate.PluginTask task)
+    public MailChimpRecordBuffer(final String attributeName, final Schema schema,
+                                 final MailChimpOutputPluginDelegate.PluginTask task)
     {
         this.attributeName = attributeName;
+        this.schema = schema;
         this.task = task;
-        this.client = new MailchimpHttpClient(task);
+        this.client = new MailChimpHttpClient(task);
         this.mapper = new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
@@ -67,9 +71,11 @@ public class MailchimpRecordBuffer
                 records = new ArrayList<>();
                 requestCount = 0;
             }
-        } catch (ClassCastException ex) {
+        }
+        catch (ClassCastException ex) {
             throw new RuntimeException(ex);
-        } catch (IOException ex) {
+        }
+        catch (IOException ex) {
             throw Throwables.propagate(ex);
         }
     }
@@ -90,7 +96,8 @@ public class MailchimpRecordBuffer
     {
         try {
             client.push(data, task);
-        } catch (JsonProcessingException jpe) {
+        }
+        catch (JsonProcessingException jpe) {
             throw new DataException(jpe);
         }
     }

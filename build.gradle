@@ -26,8 +26,8 @@ targetCompatibility = 1.7
 dependencies {
     compile  "org.embulk:embulk-core:0.8.15"
     provided "org.embulk:embulk-core:0.8.15"
-    compile  "org.embulk.base.restclient:embulk-base-restclient:0.4.2"
-    compile  "org.embulk.base.restclient:embulk-util-retryhelper-jetty92:0.4.2"
+    compile  "org.embulk.base.restclient:embulk-base-restclient:0.5.0"
+    compile  "org.embulk.base.restclient:embulk-util-retryhelper-jetty92:0.5.0"
     // compile "YOUR_JAR_DEPENDENCY_GROUP:YOUR_JAR_DEPENDENCY_MODULE:YOUR_JAR_DEPENDENCY_VERSION"
 
     testCompile "junit:junit:4.+"
@@ -107,7 +107,7 @@ Gem::Specification.new do |spec|
   spec.summary       = %[Mailchimp output plugin for Embulk]
   spec.description   = %[Dumps records to MailChimp.]
   spec.email         = ["thang@treasure-data.com"]
-  spec.licenses      = []
+  spec.licenses      = ["Apache-2.0"]
   spec.homepage      = "https://github.com/treasure-data/embulk-output-mailchimp"
 
   spec.files         = `git ls-files`.split("\n") + Dir["classpath/*.jar"]

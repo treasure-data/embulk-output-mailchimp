@@ -19,22 +19,22 @@ import static org.embulk.output.mailchimp.test.TestUtils.existsConfig;
 /**
  * Created by thangnc on 4/14/17.
  */
-public class TestMailchimpOutputPlugin
+public class TestMailChimpOutputPlugin
 {
     @Rule
     public EmbulkTestRuntime runtime = new EmbulkTestRuntime();
 
     private ConfigSource baseConfig;
-    private MailchimpOutputPluginDelegate.PluginTask task;
-    private MailchimpOutputPlugin plugin;
+    private MailChimpOutputPluginDelegate.PluginTask task;
+    private MailChimpOutputPlugin plugin;
     private String resourcesPath;
 
     @Before
     public void setup()
     {
-        plugin = new MailchimpOutputPlugin();
+        plugin = new MailChimpOutputPlugin();
         baseConfig = EmbulkTestsWithGuava.config("EMBULK_OUTPUT_MAILCHIMP_TEST_CONFIG").merge(credentials());
-        task = baseConfig.loadConfig(MailchimpOutputPluginDelegate.PluginTask.class);
+        task = baseConfig.loadConfig(MailChimpOutputPluginDelegate.PluginTask.class);
         URL csvFilePath = getClass().getClassLoader().getResource("csv");
         if (csvFilePath != null) {
             resourcesPath = new File(csvFilePath.getFile()).getAbsolutePath();

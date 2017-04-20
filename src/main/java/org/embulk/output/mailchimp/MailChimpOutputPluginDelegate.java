@@ -25,12 +25,12 @@ import static org.embulk.output.mailchimp.validation.ColumnDataValidator.checkRe
 /**
  * Created by thangnc on 4/14/17.
  */
-public class MailchimpOutputPluginDelegate
-        implements RestClientOutputPluginDelegate<MailchimpOutputPluginDelegate.PluginTask>
+public class MailChimpOutputPluginDelegate
+        implements RestClientOutputPluginDelegate<MailChimpOutputPluginDelegate.PluginTask>
 {
-    private static final Logger LOG = Exec.getLogger(MailchimpOutputPluginDelegate.class);
+    private static final Logger LOG = Exec.getLogger(MailChimpOutputPluginDelegate.class);
 
-    public MailchimpOutputPluginDelegate()
+    public MailChimpOutputPluginDelegate()
     {
     }
 
@@ -54,7 +54,6 @@ public class MailchimpOutputPluginDelegate
         int getTimeoutMills();
 
         @Config("auth_method")
-        @ConfigDefault("\"oauth\"")
         AuthMethod getAuthMethod();
 
         @Config("apikey")
@@ -77,37 +76,29 @@ public class MailchimpOutputPluginDelegate
         @Config("replace_interests")
         @ConfigDefault("false")
         boolean isReplaceInterests();
-
-//        @Config("email_column")
-//        @ConfigDefault("null")
-//        Optional<String> getEmailColumn();
-//
-//        @Config("fname_column")
-//        @ConfigDefault("null")
-//        Optional<String> getFirstNameColumn();
-//
-//        @Config("lname_column")
-//        @ConfigDefault("null")
-//        Optional<String> getLastNameColumn();
-//
-//        @Config("grouping_columns")
-//        @ConfigDefault("null")
-//        List<String> getGroupingColumns();
     }
 
+    /**
+     * Override @{@link RestClientOutputPluginDelegate#validateOutputTask(RestClientOutputTaskBase, Schema, int)}
+     * This method not only validates required configurations but also validates required columns
+     *
+     * @param task
+     * @param schema
+     * @param taskCount
+     */
     @Override
     public void validateOutputTask(final PluginTask task, final Schema schema, final int taskCount)
     {
-        if (task.getAuthMethod() == AuthMethod.OAUTH) {
-            if (!task.getAccessToken().isPresent()) {
-                throw new ConfigException("'access_token' is required when auth_method is 'oauth'");
-            }
-            else if (task.getAuthMethod() == AuthMethod.API_KEY) {
-                if (!task.getApikey().isPresent()) {
-                    throw new ConfigException("'apikey' is required when auth_method is 'api_key'");
-                }
-            }
-        }
+//        if (task.getAuthMethod() == AuthMethod.OAUTH) {
+//            if (!task.getAccessToken().isPresent()) {
+//                throw new ConfigException("'access_token' is required when auth_method is 'oauth'");
+//            }
+//            else if (task.getAuthMethod() == AuthMethod.API_KEY) {
+//                if (!task.getApikey().isPresent()) {
+//                    throw new ConfigException("'apikey' is required when auth_method is 'api_key'");
+//                }
+//            }
+//        }
 
         if (isNullOrEmpty(task.getListId())) {
             throw new ConfigException("'list_id' must not be null or empty string");
@@ -119,9 +110,9 @@ public class MailchimpOutputPluginDelegate
     }
 
     @Override
-    public RecordBuffer buildRecordBuffer(final PluginTask task)
+    public RecordBuffer buildRecordBuffer(PluginTask task, Schema schema, int taskIndex)
     {
-        return new MailchimpRecordBuffer("records", task);
+        return new MailChimpRecordBuffer("records", schema, task);
     }
 
     @Override

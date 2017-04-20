@@ -6,8 +6,8 @@ import com.google.common.collect.Lists;
 import org.embulk.config.ConfigSource;
 import org.embulk.config.TaskReport;
 import org.embulk.config.TaskSource;
-import org.embulk.output.mailchimp.MailchimpOutputPlugin;
-import org.embulk.output.mailchimp.MailchimpOutputPluginDelegate;
+import org.embulk.output.mailchimp.MailChimpOutputPlugin;
+import org.embulk.output.mailchimp.MailChimpOutputPluginDelegate;
 import org.embulk.spi.Exec;
 import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.Schema;
@@ -78,13 +78,13 @@ public final class TestUtils
      * @param plugin the plugin
      * @return the schema
      */
-    public static Schema doSetUpSchemaAndRun(final ConfigSource config, final MailchimpOutputPlugin plugin)
+    public static Schema doSetUpSchemaAndRun(final ConfigSource config, final MailChimpOutputPlugin plugin)
     {
         Schema schema = config.getNested("parser")
                 .loadConfig(CsvParserPlugin.PluginTask.class).getSchemaConfig()
                 .toSchema();
 
-        config.loadConfig(MailchimpOutputPluginDelegate.PluginTask.class);
+        config.loadConfig(MailChimpOutputPluginDelegate.PluginTask.class);
         plugin.transaction(config, schema, 0, new OutputPlugin.Control()
         {
             @Override

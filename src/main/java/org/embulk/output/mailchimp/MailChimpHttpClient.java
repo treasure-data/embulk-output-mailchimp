@@ -32,9 +32,9 @@ import java.util.List;
 /**
  * Created by thangnc on 4/14/17.
  */
-public class MailchimpHttpClient
+public class MailChimpHttpClient
 {
-    private static final Logger LOG = Exec.getLogger(MailchimpHttpClient.class);
+    private static final Logger LOG = Exec.getLogger(MailChimpHttpClient.class);
     private static final String MAILCHIMP_API = "https://us15.api.mailchimp.com";
     private static final String API = "https://login.mailchimp.com";
     private final ObjectMapper jsonMapper = new ObjectMapper()
@@ -47,19 +47,61 @@ public class MailchimpHttpClient
      *
      * @param task the task
      */
-    public MailchimpHttpClient(MailchimpOutputPluginDelegate.PluginTask task)
+    public MailChimpHttpClient(MailChimpOutputPluginDelegate.PluginTask task)
     {
         retryHelper = createRetryHelper(task);
     }
 
+    /**
+     * Build an array of email subscribers and batch insert via bulk MailChimp API
+     * Reference: https://developer.mailchimp.com/documentation/mailchimp/reference/lists/#create-post_lists_list_id
+     *
+     * @param contactsData the contacts data
+     * @param task         the task
+     * @throws JsonProcessingException the json processing exception
+     */
+    public void push(final List<JsonNode> contactsData, MailChimpOutputPluginDelegate.PluginTask task)
+            throws JsonProcessingException
+    {
+        LOG.info("Start to process subscribe data");
+        String endpoint = MessageFormat.format(MAILCHIMP_API + "/3.0/lists/{0}/members",
+                                               task.getListId());
+
+        ArrayNode arrayOfEmailSubscribers = jsonMapper.createArrayNode();
+
+        for (JsonNode contactData : contactsData) {
+            ObjectNode property = jsonMapper.createObjectNode();
+            property.put("email_address", contactData.findPath("email").asText());
+            property.put("status", contactData.findPath("status").asText());
+            arrayOfEmailSubscribers.add(property);
+        }
+
+        ObjectNode subscribers = jsonMapper.createObjectNode();
+        subscribers.put("update_existing", task.isUpdateExisting());
+        subscribers.putArray("members").addAll(arrayOfEmailSubscribers);
+
+        String content = jsonMapper.writeValueAsString(subscribers);
+        sendRequest(endpoint, HttpMethod.POST, content, task);
+    }
+
+    /**
+     * Close @{@link Jetty92RetryHelper} connection
+     */
+    public void close()
+    {
+        if (retryHelper != null) {
+            retryHelper.close();
+        }
+    }
+
     private JsonNode sendRequest(final String endpoint, final HttpMethod method,
-                                 final MailchimpOutputPluginDelegate.PluginTask task)
+                                 final MailChimpOutputPluginDelegate.PluginTask task)
     {
         return sendRequest(endpoint, method, "", task);
     }
 
     private JsonNode sendRequest(final String endpoint, final HttpMethod method, final String content,
-                                 final MailchimpOutputPluginDelegate.PluginTask task)
+                                 final MailChimpOutputPluginDelegate.PluginTask task)
     {
         final String authorizationHeader = getAuthorizationHeader(task);
 
@@ -94,7 +136,8 @@ public class MailchimpHttpClient
                     });
 
             return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
-        } catch (HttpResponseException ex) {
+        }
+        catch (HttpResponseException ex) {
             LOG.error("Exception occurred while sending request: {}", ex.getMessage());
 
             throw ex;
@@ -106,7 +149,8 @@ public class MailchimpHttpClient
     {
         try {
             return this.jsonMapper.readTree(json);
-        } catch (IOException ex) {
+        }
+        catch (IOException ex) {
             throw new DataException(ex);
         }
     }
@@ -117,7 +161,7 @@ public class MailchimpHttpClient
      * @param task
      * @return
      */
-    private String getAuthorizationHeader(final MailchimpOutputPluginDelegate.PluginTask task)
+    private String getAuthorizationHeader(final MailChimpOutputPluginDelegate.PluginTask task)
     {
         switch (task.getAuthMethod()) {
             case OAUTH:
@@ -130,7 +174,7 @@ public class MailchimpHttpClient
         }
     }
 
-    private Jetty92RetryHelper createRetryHelper(MailchimpOutputPluginDelegate.PluginTask task)
+    private Jetty92RetryHelper createRetryHelper(MailChimpOutputPluginDelegate.PluginTask task)
     {
         return new Jetty92RetryHelper(
                 task.getMaximumRetries(),
@@ -145,50 +189,11 @@ public class MailchimpHttpClient
                         try {
                             client.start();
                             return client;
-                        } catch (Exception e) {
+                        }
+                        catch (Exception e) {
                             throw Throwables.propagate(e);
                         }
                     }
                 });
-    }
-
-    /**
-     * Build an array of email subscribers and batch insert via bulk MailChimp API
-     * Reference: https://developer.mailchimp.com/documentation/mailchimp/reference/lists/#create-post_lists_list_id
-     *
-     * @param contactsData the contacts data
-     * @param task         the task
-     * @throws JsonProcessingException the json processing exception
-     */
-    public void push(final List<JsonNode> contactsData, MailchimpOutputPluginDelegate.PluginTask task)
-            throws JsonProcessingException
-    {
-        LOG.info("Start to process subscribe data");
-        String endpoint = MessageFormat.format(MAILCHIMP_API + "/3.0/lists/{0}/members",
-                                               task.getListId());
-
-        ArrayNode arrayOfEmailSubscribers = jsonMapper.createArrayNode();
-
-        for (JsonNode contactData : contactsData) {
-            ObjectNode property = jsonMapper.createObjectNode();
-            property.put("email_address", contactData.findPath("email").asText());
-            property.put("status", contactData.findPath("status").asText());
-            arrayOfEmailSubscribers.add(property);
-        }
-
-        ObjectNode subscribers = jsonMapper.createObjectNode();
-        subscribers.put("update_existing", task.isUpdateExisting());
-        subscribers.putArray("members").addAll(arrayOfEmailSubscribers);
-
-        String content = jsonMapper.writeValueAsString(subscribers);
-        sendRequest(endpoint, HttpMethod.POST, content, task);
-    }
-
-    /**
-     * Close @{@link Jetty92RetryHelper} connection
-     */
-    public void close()
-    {
-        retryHelper.close();
     }
 }
