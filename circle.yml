@@ -3,7 +3,7 @@ machine:
     version: openjdk7
   environment:
     TERM: "dumb"
-    EMBULK_OUTPUT_MAILCHIMP_TEST_CONFIG: "${HOME}/${CIRCLE_PROJECT_REPONAME}/ci/circle_mailchimp.yml"
+    EMBULK_OUTPUT_MAILCHIMP_TEST_CONFIG: "${HOME}/${TRAVIS_BUILD_DIR}/ci/travis_mailchimp.yml"
 
 test:
   override:
