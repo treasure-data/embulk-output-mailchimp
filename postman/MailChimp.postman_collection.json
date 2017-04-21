@@ -5,16 +5,27 @@
 	"order": [
 		"7bc1ae79-68e8-15ef-e15c-01bd26b4bf2f",
 		"22201306-c901-342f-0472-b30a433dd029",
-		"86f1ab62-2fad-acde-02e5-5ddd14eecdb6",
-		"f4422b59-873f-f0bf-1a86-59c4beaf5dd9",
-		"0f8276e5-652a-13c8-2563-df9dc4c0ef00"
+		"86f1ab62-2fad-acde-02e5-5ddd14eecdb6"
 	],
 	"folders": [
+		{
+			"id": "74a85779-d021-499c-12b3-654f598b4a2e",
+			"name": "Interest categories",
+			"description": "",
+			"order": [
+				"e520f56b-8ebc-74c4-e5bf-495fc9ded397",
+				"879943de-8d6d-62d0-7dd1-a4287634290c"
+			],
+			"owner": "1392811"
+		},
 		{
 			"id": "8bd652d8-336d-6e74-93c5-dbc5cf74bffd",
 			"name": "Subscriber",
 			"description": "",
-			"order": [],
+			"order": [
+				"f4422b59-873f-f0bf-1a86-59c4beaf5dd9",
+				"0f8276e5-652a-13c8-2563-df9dc4c0ef00"
+			],
 			"owner": "1392811"
 		}
 	],
@@ -39,6 +50,7 @@
 			"description": "Use a PATCH request to the address’s endpoint to update an address’s metadata. The body can be a JSON object with only the data you want to change.",
 			"collectionId": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf",
 			"responses": [],
+			"folder": "8bd652d8-336d-6e74-93c5-dbc5cf74bffd",
 			"rawModeData": "{\n    \"status\": \"cleaned\"\n}"
 		},
 		{
@@ -155,6 +167,46 @@
 			"collectionId": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf"
 		},
 		{
+			"id": "879943de-8d6d-62d0-7dd1-a4287634290c",
+			"headers": "Authorization: OAuth {{access_token}}\nContent-Type: application/json\n",
+			"url": "https://us15.api.mailchimp.com/3.0/lists/{{list_id}}/interest-categories/aef91b012c/interests",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "GET",
+			"data": [],
+			"dataMode": "raw",
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1492785528032,
+			"name": "Get interest category",
+			"description": "Get all interests in a specific category",
+			"collectionId": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf",
+			"responses": [],
+			"folder": "74a85779-d021-499c-12b3-654f598b4a2e",
+			"rawModeData": "{\n    \"email_address\": \"thang001@gmail.com\",\n    \"status\": \"subscribed\",\n    \"merge_fields\": {\n\t    \"FNAME\": \"Thang\",\n\t    \"LNAME\": \"Nguyen\",\n\t    \"WEB\": \"\"\n\t  },\n\t  \"interests\": {\n\t    \"b7652a86ca\": false,\n\t    \"2b6afc9b84\": false,\n\t    \"69631a4a0e\": false,\n\t    \"ca1b0d08c8\": false,\n\t    \"d788f4fe38\": false,\n\t    \"477a0855ca\": false\n\t  }\n}"
+		},
+		{
+			"id": "e520f56b-8ebc-74c4-e5bf-495fc9ded397",
+			"headers": "Authorization: OAuth {{access_token}}\nContent-Type: application/json\n",
+			"url": "https://us15.api.mailchimp.com/3.0/lists/{{list_id}}/interest-categories",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "GET",
+			"data": [],
+			"dataMode": "raw",
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1492785572454,
+			"name": "Get interest categories",
+			"description": "Get information about a list’s interest categories",
+			"collectionId": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf",
+			"responses": [],
+			"folder": "74a85779-d021-499c-12b3-654f598b4a2e",
+			"rawModeData": "{\n    \"email_address\": \"thang001@gmail.com\",\n    \"status\": \"subscribed\",\n    \"merge_fields\": {\n\t    \"FNAME\": \"Thang\",\n\t    \"LNAME\": \"Nguyen\",\n\t    \"WEB\": \"\"\n\t  },\n\t  \"interests\": {\n\t    \"b7652a86ca\": false,\n\t    \"2b6afc9b84\": false,\n\t    \"69631a4a0e\": false,\n\t    \"ca1b0d08c8\": false,\n\t    \"d788f4fe38\": false,\n\t    \"477a0855ca\": false\n\t  }\n}"
+		},
+		{
 			"id": "f4422b59-873f-f0bf-1a86-59c4beaf5dd9",
 			"headers": "Authorization: OAuth {{access_token}}\nContent-Type: application/json\n",
 			"url": "https://us15.api.mailchimp.com/3.0/lists/{{list_id}}/members/",
@@ -166,12 +218,15 @@
 			"tests": null,
 			"currentHelper": "normal",
 			"helperAttributes": {},
-			"time": 1492428249783,
+			"time": 1492785248035,
 			"name": "Subscribe an Address",
 			"description": "Send a POST request to the List Members endpoint",
 			"collectionId": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf",
 			"responses": [],
-			"rawModeData": "{\n    \"email_address\": \"thang@gmail.com\",\n    \"status\": \"subscribed\",\n    \"merge_fields\": {\n        \"FNAME\": \"Thang\",\n        \"LNAME\": \"Nguyen\"\n    }\n}"
+			"isFromCollection": true,
+			"collectionRequestId": "f4422b59-873f-f0bf-1a86-59c4beaf5dd9",
+			"folder": "8bd652d8-336d-6e74-93c5-dbc5cf74bffd",
+			"rawModeData": "{\n    \"email_address\": \"thang001@gmail.com\",\n    \"status\": \"subscribed\",\n    \"merge_fields\": {\n\t    \"FNAME\": \"Thang\",\n\t    \"LNAME\": \"Nguyen\",\n\t    \"WEB\": \"\"\n\t  },\n\t  \"interests\": {\n\t    \"b7652a86ca\": false,\n\t    \"2b6afc9b84\": false,\n\t    \"69631a4a0e\": false,\n\t    \"ca1b0d08c8\": false,\n\t    \"d788f4fe38\": false,\n\t    \"477a0855ca\": false\n\t  }\n}"
 		}
 	]
 }
