@@ -54,28 +54,35 @@ public class MailChimpOutputPluginDelegate
         int getTimeoutMills();
 
         @Config("auth_method")
+        @ConfigDefault("access_token")
         AuthMethod getAuthMethod();
 
         @Config("apikey")
+        @ConfigDefault("null")
         Optional<String> getApikey();
 
         @Config("access_token")
+        @ConfigDefault("null")
         Optional<String> getAccessToken();
 
         @Config("list_id")
         String getListId();
 
+        @Config("merge_fields")
+        @ConfigDefault("null")
+        Optional<List<String>> getMergeFields();
+
         @Config("double_optin")
         @ConfigDefault("false")
-        boolean isDoubleOptIn();
+        boolean getDoubleOptin();
 
         @Config("update_existing")
         @ConfigDefault("false")
-        boolean isUpdateExisting();
+        boolean getUpdateExisting();
 
         @Config("replace_interests")
         @ConfigDefault("false")
-        boolean isReplaceInterests();
+        boolean getReplaceInterests();
     }
 
     /**
@@ -89,16 +96,16 @@ public class MailChimpOutputPluginDelegate
     @Override
     public void validateOutputTask(final PluginTask task, final Schema schema, final int taskCount)
     {
-//        if (task.getAuthMethod() == AuthMethod.OAUTH) {
-//            if (!task.getAccessToken().isPresent()) {
-//                throw new ConfigException("'access_token' is required when auth_method is 'oauth'");
-//            }
-//            else if (task.getAuthMethod() == AuthMethod.API_KEY) {
-//                if (!task.getApikey().isPresent()) {
-//                    throw new ConfigException("'apikey' is required when auth_method is 'api_key'");
-//                }
-//            }
-//        }
+        if (task.getAuthMethod() == AuthMethod.OAUTH) {
+            if (!task.getAccessToken().isPresent()) {
+                throw new ConfigException("'access_token' is required when auth_method is 'oauth'");
+            }
+        }
+        else if (task.getAuthMethod() == AuthMethod.API_KEY) {
+            if (!task.getApikey().isPresent()) {
+                throw new ConfigException("'apikey' is required when auth_method is 'api_key'");
+            }
+        }
 
         if (isNullOrEmpty(task.getListId())) {
             throw new ConfigException("'list_id' must not be null or empty string");
@@ -112,7 +119,7 @@ public class MailChimpOutputPluginDelegate
     @Override
     public RecordBuffer buildRecordBuffer(PluginTask task, Schema schema, int taskIndex)
     {
-        return new MailChimpRecordBuffer("records", schema, task);
+        return new MailChimpRecordBuffer(schema, task);
     }
 
     @Override

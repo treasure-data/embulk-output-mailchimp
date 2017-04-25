@@ -1,104 +1,94 @@
 package org.embulk.output.mailchimp;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Throwables;
-import org.embulk.base.restclient.jackson.JacksonServiceRecord;
-import org.embulk.base.restclient.record.RecordBuffer;
-import org.embulk.base.restclient.record.ServiceRecord;
-import org.embulk.config.TaskReport;
+import org.eclipse.jetty.http.HttpMethod;
+import org.embulk.spi.Column;
 import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.slf4j.Logger;
 
-import java.io.IOException;
-import java.util.ArrayList;
+import java.text.MessageFormat;
 import java.util.List;
 
 /**
- * Created by thangnc on 4/14/17.
+ * Created by thangnc on 4/25/17.
  */
-public class MailChimpRecordBuffer
-        extends RecordBuffer
+public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
 {
     private static final Logger LOG = Exec.getLogger(MailChimpRecordBuffer.class);
-    private static final int MAX_RECORD_PER_BATCH_REQUEST = 500;
-    private final String attributeName;
-    private final MailChimpOutputPluginDelegate.PluginTask task;
-    private final Schema schema;
-    private final MailChimpHttpClient client;
-    private final ObjectMapper mapper;
-    private int requestCount;
-    private long totalCount;
-    private List<JsonNode> records;
+    private static final String MAILCHIMP_API = "https://us15.api.mailchimp.com";
+    private final ObjectMapper jsonMapper = new ObjectMapper()
+            .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false)
+            .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    private MailChimpHttpClient client;
 
-    public MailChimpRecordBuffer(final String attributeName, final Schema schema,
-                                 final MailChimpOutputPluginDelegate.PluginTask task)
+    public MailChimpRecordBuffer(Schema schema, MailChimpOutputPluginDelegate.PluginTask task)
     {
-        this.attributeName = attributeName;
-        this.schema = schema;
-        this.task = task;
-        this.client = new MailChimpHttpClient(task);
-        this.mapper = new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
-        this.records = new ArrayList<>();
+        super(schema, task);
+        client = new MailChimpHttpClient(task);
     }
 
     @Override
-    public void bufferRecord(ServiceRecord serviceRecord)
+    void cleanUp()
     {
-        JacksonServiceRecord jacksonServiceRecord;
+        client.close();
+    }
 
-        try {
-            jacksonServiceRecord = (JacksonServiceRecord) serviceRecord;
-            JsonNode record = mapper.readTree(jacksonServiceRecord.toString()).get("record");
+    /**
+     * Build an array of email subscribers and batch insert via bulk MailChimp API
+     * Reference: https://developer.mailchimp.com/documentation/mailchimp/reference/lists/#create-post_lists_list_id
+     *
+     * @param contactsData the contacts data
+     * @param task         the task
+     * @throws JsonProcessingException the json processing exception
+     */
+    @Override
+    public void push(final List<JsonNode> contactsData, MailChimpOutputPluginDelegate.PluginTask task)
+            throws JsonProcessingException
+    {
+        LOG.info("Start to process subscribe data");
+        String endpoint = MessageFormat.format(MAILCHIMP_API + "/3.0/lists/{0}",
+                                               task.getListId());
 
-            requestCount++;
-            totalCount++;
+        ArrayNode arrayOfEmailSubscribers = jsonMapper.createArrayNode();
 
-            records.add(record);
-            if (requestCount >= MAX_RECORD_PER_BATCH_REQUEST) {
-                pushData(records);
+        for (JsonNode contactData : contactsData) {
+            ObjectNode property = jsonMapper.createObjectNode();
+            property.put("email_address", contactData.findPath("email").asText());
+            property.put("status", contactData.findPath("status").asText());
 
-                if (totalCount % 1000 == 0) {
-                    LOG.info("Inserted {} records", totalCount);
+            ObjectNode mergeFields = jsonMapper.createObjectNode();
+            for (final Column column : getSchema().getColumns()) {
+                if (task.getMergeFields().isPresent() && task.getMergeFields().get().contains(column.getName())) {
+                    String value = contactData.findValue(column.getName()).asText();
+                    mergeFields.put(column.getName(), value);
                 }
-
-                records = new ArrayList<>();
-                requestCount = 0;
             }
-        }
-        catch (ClassCastException ex) {
-            throw new RuntimeException(ex);
-        }
-        catch (IOException ex) {
-            throw Throwables.propagate(ex);
-        }
-    }
-
-    @Override
-    public TaskReport commitWithTaskReportUpdated(TaskReport taskReport)
-    {
-        if (records.size() > 0) {
-            pushData(records);
-            LOG.info("Inserted {} records", records.size());
+            property.set("merged_fields", mergeFields);
+            arrayOfEmailSubscribers.add(property);
         }
 
-        this.client.close();
-        return Exec.newTaskReport().set("inserted", totalCount);
-    }
+        ObjectNode subscribers = jsonMapper.createObjectNode();
+        subscribers.putArray("members").addAll(arrayOfEmailSubscribers);
+        subscribers.put("update_existing", task.getUpdateExisting());
 
-    private void pushData(final List<JsonNode> data)
-    {
-        try {
-            client.push(data, task);
-        }
-        catch (JsonProcessingException jpe) {
-            throw new DataException(jpe);
+        String content = jsonMapper.writeValueAsString(subscribers);
+        JsonNode response = client.sendRequest(endpoint, HttpMethod.POST, content, task);
+        List<String> errors = response.findPath("errors").findValuesAsText("error");
+
+        StringBuilder errorMessage = new StringBuilder();
+        if (!errors.isEmpty()) {
+            for (String error : errors) {
+                errorMessage.append("\n").append(error);
+            }
+
+            Throwables.propagate(new DataException(errorMessage.toString()));
         }
     }
 }

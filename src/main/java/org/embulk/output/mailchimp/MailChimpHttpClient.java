@@ -1,12 +1,9 @@
 package org.embulk.output.mailchimp;
 
 import com.fasterxml.jackson.core.Base64Variants;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.MissingNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Throwables;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.eclipse.jetty.client.HttpClient;
@@ -26,8 +23,6 @@ import org.embulk.util.retryhelper.jetty92.StringJetty92ResponseEntityReader;
 import org.slf4j.Logger;
 
 import java.io.IOException;
-import java.text.MessageFormat;
-import java.util.List;
 
 /**
  * Created by thangnc on 4/14/17.
@@ -35,8 +30,6 @@ import java.util.List;
 public class MailChimpHttpClient
 {
     private static final Logger LOG = Exec.getLogger(MailChimpHttpClient.class);
-    private static final String MAILCHIMP_API = "https://us15.api.mailchimp.com";
-    private static final String API = "https://login.mailchimp.com";
     private final ObjectMapper jsonMapper = new ObjectMapper()
             .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false)
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -53,38 +46,6 @@ public class MailChimpHttpClient
     }
 
     /**
-     * Build an array of email subscribers and batch insert via bulk MailChimp API
-     * Reference: https://developer.mailchimp.com/documentation/mailchimp/reference/lists/#create-post_lists_list_id
-     *
-     * @param contactsData the contacts data
-     * @param task         the task
-     * @throws JsonProcessingException the json processing exception
-     */
-    public void push(final List<JsonNode> contactsData, MailChimpOutputPluginDelegate.PluginTask task)
-            throws JsonProcessingException
-    {
-        LOG.info("Start to process subscribe data");
-        String endpoint = MessageFormat.format(MAILCHIMP_API + "/3.0/lists/{0}/members",
-                                               task.getListId());
-
-        ArrayNode arrayOfEmailSubscribers = jsonMapper.createArrayNode();
-
-        for (JsonNode contactData : contactsData) {
-            ObjectNode property = jsonMapper.createObjectNode();
-            property.put("email_address", contactData.findPath("email").asText());
-            property.put("status", contactData.findPath("status").asText());
-            arrayOfEmailSubscribers.add(property);
-        }
-
-        ObjectNode subscribers = jsonMapper.createObjectNode();
-        subscribers.put("update_existing", task.isUpdateExisting());
-        subscribers.putArray("members").addAll(arrayOfEmailSubscribers);
-
-        String content = jsonMapper.writeValueAsString(subscribers);
-        sendRequest(endpoint, HttpMethod.POST, content, task);
-    }
-
-    /**
      * Close @{@link Jetty92RetryHelper} connection
      */
     public void close()
@@ -94,14 +55,14 @@ public class MailChimpHttpClient
         }
     }
 
-    private JsonNode sendRequest(final String endpoint, final HttpMethod method,
-                                 final MailChimpOutputPluginDelegate.PluginTask task)
+    public JsonNode sendRequest(final String endpoint, final HttpMethod method,
+                                final MailChimpOutputPluginDelegate.PluginTask task)
     {
         return sendRequest(endpoint, method, "", task);
     }
 
-    private JsonNode sendRequest(final String endpoint, final HttpMethod method, final String content,
-                                 final MailChimpOutputPluginDelegate.PluginTask task)
+    public JsonNode sendRequest(final String endpoint, final HttpMethod method, final String content,
+                                final MailChimpOutputPluginDelegate.PluginTask task)
     {
         final String authorizationHeader = getAuthorizationHeader(task);
 
@@ -165,10 +126,10 @@ public class MailChimpHttpClient
     {
         switch (task.getAuthMethod()) {
             case OAUTH:
-                return "OAuth " + task.getAccessToken();
+                return "OAuth " + task.getAccessToken().orNull();
             case API_KEY:
                 return "Basic " + Base64Variants.MIME_NO_LINEFEEDS
-                        .encode((RandomStringUtils.randomAlphabetic(10) + ":" + task.getApikey()).getBytes());
+                        .encode((RandomStringUtils.randomAlphabetic(10) + ":" + task.getApikey().orNull()).getBytes());
             default:
                 throw new ConfigException("Not supported method");
         }
