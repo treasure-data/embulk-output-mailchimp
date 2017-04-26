@@ -1,9 +1,16 @@
 package org.embulk.output.mailchimp;
 
+import com.google.common.collect.Lists;
 import org.embulk.EmbulkTestRuntime;
 import org.embulk.config.ConfigException;
 import org.embulk.config.ConfigSource;
+import org.embulk.config.TaskReport;
+import org.embulk.config.TaskSource;
 import org.embulk.output.mailchimp.test.EmbulkTestsWithGuava;
+import org.embulk.spi.Exec;
+import org.embulk.spi.OutputPlugin;
+import org.embulk.spi.Schema;
+import org.embulk.spi.TransactionalPageOutput;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -11,10 +18,9 @@ import org.junit.Test;
 
 import java.io.File;
 import java.net.URL;
+import java.util.List;
 
 import static org.embulk.output.mailchimp.CircleCICredentials.credentials;
-import static org.embulk.output.mailchimp.test.TestUtils.doSetUpSchemaAndRun;
-import static org.embulk.output.mailchimp.test.TestUtils.existsConfig;
 
 /**
  * Created by thangnc on 4/14/17.
@@ -47,36 +53,102 @@ public class TestMailChimpOutputPlugin
     }
 
     @Test(expected = ConfigException.class)
-    public void test_transaction_invalidWithEmptyApiKey()
+    public void test_config_invalidWithEmptyApiKey()
     {
-        ConfigSource config = existsConfig(resourcesPath, baseConfig)
-                .set("apikey", "");
+        ConfigSource config = baseConfig.set("apikey", "");
         doSetUpSchemaAndRun(config, plugin);
     }
 
     @Test(expected = ConfigException.class)
-    public void test_transaction_invalidWithNullApiKey()
+    public void test_config_invalidWithNullApiKey()
     {
-        ConfigSource config = existsConfig(resourcesPath, baseConfig)
-                .set("apikey", null);
+        ConfigSource config = baseConfig.set("apikey", null);
         doSetUpSchemaAndRun(config, plugin);
     }
 
     @Test(expected = ConfigException.class)
-    public void test_transaction_invalidWithEmptyAccessToken()
+    public void test_config_invalidWithEmptyAccessToken()
     {
-        ConfigSource config = existsConfig(resourcesPath, baseConfig)
-                .set("auth_method", "oauth")
+        ConfigSource config = baseConfig.set("auth_method", "oauth")
                 .set("access_token", "");
         doSetUpSchemaAndRun(config, plugin);
     }
 
     @Test(expected = ConfigException.class)
-    public void test_transaction_invalidWithNullAccessToken()
+    public void test_config_invalidWithNullAccessToken()
     {
-        ConfigSource config = existsConfig(resourcesPath, baseConfig)
-                .set("auth_method", "oauth")
+        ConfigSource config = baseConfig.set("auth_method", "oauth")
                 .set("access_token", null);
         doSetUpSchemaAndRun(config, plugin);
+    }
+
+    @Test(expected = ConfigException.class)
+    public void test_config_invalidWithNullListId()
+    {
+        ConfigSource config = baseConfig.set("list_id", null);
+        doSetUpSchemaAndRun(config, plugin);
+    }
+
+    @Test(expected = ConfigException.class)
+    public void test_config_invalidWithEmptyListId()
+    {
+        ConfigSource config = baseConfig.set("list_id", "");
+        doSetUpSchemaAndRun(config, plugin);
+    }
+
+    @Test(expected = ConfigException.class)
+    public void test_config_invalidWithColumnEmailRequires()
+    {
+        ConfigSource config = baseConfig;
+        Schema schema = Schema.builder()
+                .add("firstname", org.embulk.spi.type.Types.STRING)
+                .add("lastname", org.embulk.spi.type.Types.STRING)
+                .add("status", org.embulk.spi.type.Types.STRING)
+                .build();
+
+        final TransactionalPageOutput output = plugin.open(task.dump(), schema, 0);
+        output.finish();
+
+        plugin.transaction(config, schema, 0, new OutputControl());
+    }
+
+    @Test(expected = ConfigException.class)
+    public void test_config_invalidWithColumnStatusRequires()
+    {
+        ConfigSource config = baseConfig;
+        Schema schema = Schema.builder()
+                .add("email", org.embulk.spi.type.Types.STRING)
+                .add("fname", org.embulk.spi.type.Types.STRING)
+                .add("lname", org.embulk.spi.type.Types.STRING)
+                .build();
+
+        final TransactionalPageOutput output = plugin.open(task.dump(), schema, 0);
+        output.finish();
+
+        plugin.transaction(config, schema, 0, new OutputControl());
+    }
+
+    private class OutputControl implements OutputPlugin.Control
+    {
+        @Override
+        public List<TaskReport> run(TaskSource taskSource)
+        {
+            return Lists.newArrayList(Exec.newTaskReport());
+        }
+    }
+
+    private void doSetUpSchemaAndRun(final ConfigSource config, final MailChimpOutputPlugin plugin)
+    {
+        Schema schema = Schema.builder()
+                .add("email", org.embulk.spi.type.Types.STRING)
+                .add("fname", org.embulk.spi.type.Types.STRING)
+                .add("lname", org.embulk.spi.type.Types.STRING)
+                .add("status", org.embulk.spi.type.Types.STRING)
+                .build();
+
+        final TransactionalPageOutput output = plugin.open(task.dump(), schema, 0);
+        output.finish();
+
+        plugin.transaction(config, schema, 0, new OutputControl());
     }
 }

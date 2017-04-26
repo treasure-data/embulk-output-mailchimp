@@ -1,2 +1,5 @@
 type: mailchimp
 auth_method: api_key
+api_key: xxxxxxxxxxxxxxxxxxx
+access_token: xxxxxxxxxxxxxxxxxxx
+list_id: xxxxxxxxxxxxxxxxxxx

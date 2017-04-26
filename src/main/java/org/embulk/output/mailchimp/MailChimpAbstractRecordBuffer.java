@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Throwables;
 import org.embulk.base.restclient.jackson.JacksonServiceRecord;
 import org.embulk.base.restclient.record.RecordBuffer;
@@ -19,6 +21,8 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
 
 /**
  * Created by thangnc on 4/14/17.
@@ -65,7 +69,8 @@ public abstract class MailChimpAbstractRecordBuffer
 
             records.add(record);
             if (requestCount >= MAX_RECORD_PER_BATCH_REQUEST) {
-                ReportResponse reportResponse = push(records, task);
+                ObjectNode subcribers = processSubcribers(records, task);
+                ReportResponse reportResponse = push(subcribers, task);
 
                 if (totalCount % 1000 == 0) {
                     LOG.info("Pushed {} records", totalCount);
@@ -97,7 +102,8 @@ public abstract class MailChimpAbstractRecordBuffer
     {
         try {
             if (records.size() > 0) {
-                ReportResponse reportResponse = push(records, task);
+                ObjectNode subcribers = processSubcribers(records, task);
+                ReportResponse reportResponse = push(subcribers, task);
                 LOG.info("Pushed {} records", records.size());
                 LOG.info("{} records created, {} records updated, {} records failed",
                          reportResponse.getTotalCreated(),
@@ -115,6 +121,48 @@ public abstract class MailChimpAbstractRecordBuffer
     }
 
     /**
+     * Receive data and build payload json that contains subscribers
+     *
+     * @param data the data
+     * @param task the task
+     * @return the object node
+     */
+    ObjectNode processSubcribers(final List<JsonNode> data, final MailChimpOutputPluginDelegate.PluginTask task)
+    {
+        LOG.info("Start to process subscribe data");
+
+        ArrayNode arrayOfEmailSubscribers = mapper.createArrayNode();
+
+        for (JsonNode contactData : data) {
+            ObjectNode property = mapper.createObjectNode();
+            property.put("email_address", contactData.findPath("email").asText());
+            property.put("status", contactData.findPath("status").asText());
+
+            ObjectNode mergeFields = mapper.createObjectNode();
+            // The reason to use this kind of loop because we need to get explicit merge field instead of column name
+            if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
+                for (int i = 0; i < getSchema().getColumns().size(); i++) {
+                    String columnName = getSchema().getColumnName(i);
+                    String mergeField = containsCaseInsensitive(columnName,
+                                                                task.getMergeFields().get());
+
+                    if (!mergeField.isEmpty()) {
+                        String value = contactData.findValue(columnName).asText();
+                        mergeFields.put(mergeField, value);
+                    }
+                }
+            }
+            property.set("merged_fields", mergeFields);
+            arrayOfEmailSubscribers.add(property);
+        }
+
+        ObjectNode subscribers = mapper.createObjectNode();
+        subscribers.putArray("members").addAll(arrayOfEmailSubscribers);
+        subscribers.put("update_existing", task.getUpdateExisting());
+        return subscribers;
+    }
+
+    /**
      * Gets schema.
      *
      * @return the schema
@@ -125,6 +173,16 @@ public abstract class MailChimpAbstractRecordBuffer
     }
 
     /**
+     * Gets mapper.
+     *
+     * @return the mapper
+     */
+    public ObjectMapper getMapper()
+    {
+        return mapper;
+    }
+
+    /**
      * Clean up.
      */
     abstract void cleanUp();
@@ -132,12 +190,12 @@ public abstract class MailChimpAbstractRecordBuffer
     /**
      * Push payload data to MailChimp API and get @{@link ReportResponse}
      *
-     * @param data the data
+     * @param node the content
      * @param task the task
      * @return the report response
      * @throws JsonProcessingException the json processing exception
      */
-    abstract ReportResponse push(final List<JsonNode> data, final MailChimpOutputPluginDelegate.PluginTask task)
+    abstract ReportResponse push(final ObjectNode node, final MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException;
 
     /**
