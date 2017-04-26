@@ -89,12 +89,12 @@ public class MailChimpOutputPluginDelegate
     public void validateOutputTask(final PluginTask task, final Schema schema, final int taskCount)
     {
         if (task.getAuthMethod() == AuthMethod.OAUTH) {
-            if (!task.getAccessToken().isPresent()) {
+            if (!task.getAccessToken().isPresent() || isNullOrEmpty(task.getAccessToken().get())) {
                 throw new ConfigException("'access_token' is required when auth_method is 'oauth'");
             }
         }
         else if (task.getAuthMethod() == AuthMethod.API_KEY) {
-            if (!task.getApikey().isPresent()) {
+            if (!task.getApikey().isPresent() || isNullOrEmpty(task.getApikey().get())) {
                 throw new ConfigException("'apikey' is required when auth_method is 'api_key'");
             }
         }
