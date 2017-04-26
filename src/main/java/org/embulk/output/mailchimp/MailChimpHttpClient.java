@@ -68,7 +68,7 @@ public class MailChimpHttpClient
 
         try {
             String responseBody = retryHelper.requestWithRetry(
-                    new StringJetty92ResponseEntityReader(task.getTimeoutMills()),
+                    new StringJetty92ResponseEntityReader(task.getTimeoutMillis()),
                     new Jetty92SingleRequester()
                     {
                         @Override

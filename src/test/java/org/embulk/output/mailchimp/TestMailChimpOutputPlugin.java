@@ -47,7 +47,7 @@ public class TestMailChimpOutputPlugin
     }
 
     @Test(expected = ConfigException.class)
-    public void test_transaction_hasInvalidWithEmptyApiKey()
+    public void test_transaction_invalidWithEmptyApiKey()
     {
         ConfigSource config = existsConfig(resourcesPath, baseConfig)
                 .set("apikey", "");
@@ -55,7 +55,7 @@ public class TestMailChimpOutputPlugin
     }
 
     @Test(expected = ConfigException.class)
-    public void test_transaction_hasInvalidWithNullApiKey()
+    public void test_transaction_invalidWithNullApiKey()
     {
         ConfigSource config = existsConfig(resourcesPath, baseConfig)
                 .set("apikey", null);
@@ -63,7 +63,7 @@ public class TestMailChimpOutputPlugin
     }
 
     @Test(expected = ConfigException.class)
-    public void test_transaction_hasInvalidWithEmptyAccessToken()
+    public void test_transaction_invalidWithEmptyAccessToken()
     {
         ConfigSource config = existsConfig(resourcesPath, baseConfig)
                 .set("auth_method", "oauth")
@@ -72,7 +72,7 @@ public class TestMailChimpOutputPlugin
     }
 
     @Test(expected = ConfigException.class)
-    public void test_transaction_hasInvalidWithNullAccessToken()
+    public void test_transaction_invalidWithNullAccessToken()
     {
         ConfigSource config = existsConfig(resourcesPath, baseConfig)
                 .set("auth_method", "oauth")

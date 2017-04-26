@@ -51,7 +51,7 @@ public class MailChimpOutputPluginDelegate
 
         @Config("timeout_millis")
         @ConfigDefault("60000")
-        int getTimeoutMills();
+        int getTimeoutMillis();
 
         @Config("auth_method")
         @ConfigDefault("access_token")
@@ -72,17 +72,9 @@ public class MailChimpOutputPluginDelegate
         @ConfigDefault("null")
         Optional<List<String>> getMergeFields();
 
-        @Config("double_optin")
-        @ConfigDefault("false")
-        boolean getDoubleOptin();
-
         @Config("update_existing")
         @ConfigDefault("false")
         boolean getUpdateExisting();
-
-        @Config("replace_interests")
-        @ConfigDefault("false")
-        boolean getReplaceInterests();
     }
 
     /**
@@ -136,12 +128,12 @@ public class MailChimpOutputPluginDelegate
     {
         long totalInserted = 0;
         for (TaskReport taskReport : taskReports) {
-            if (taskReport.has("inserted")) {
-                totalInserted += taskReport.get(Long.class, "inserted");
+            if (taskReport.has("pushed")) {
+                totalInserted += taskReport.get(Long.class, "pushed");
             }
         }
 
-        LOG.info("Insert completed. {} records", totalInserted);
+        LOG.info("Pushed completed. {} records", totalInserted);
 
         return Exec.newConfigDiff();
     }

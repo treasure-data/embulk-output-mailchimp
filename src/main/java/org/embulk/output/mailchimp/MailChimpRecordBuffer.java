@@ -5,16 +5,18 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.base.Throwables;
 import org.eclipse.jetty.http.HttpMethod;
-import org.embulk.spi.Column;
-import org.embulk.spi.DataException;
+import org.embulk.output.mailchimp.helper.MailChimpHelper;
+import org.embulk.output.mailchimp.model.ErrorResponse;
+import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.slf4j.Logger;
 
 import java.text.MessageFormat;
 import java.util.List;
+
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
 
 /**
  * Created by thangnc on 4/25/17.
@@ -49,7 +51,7 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
      * @throws JsonProcessingException the json processing exception
      */
     @Override
-    public void push(final List<JsonNode> contactsData, MailChimpOutputPluginDelegate.PluginTask task)
+    public ReportResponse push(final List<JsonNode> contactsData, MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException
     {
         LOG.info("Start to process subscribe data");
@@ -64,10 +66,17 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
             property.put("status", contactData.findPath("status").asText());
 
             ObjectNode mergeFields = jsonMapper.createObjectNode();
-            for (final Column column : getSchema().getColumns()) {
-                if (task.getMergeFields().isPresent() && task.getMergeFields().get().contains(column.getName())) {
-                    String value = contactData.findValue(column.getName()).asText();
-                    mergeFields.put(column.getName(), value);
+            // The reason to use this kind of loop because we need to get explicit merge field instead of column name
+            if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
+                for (int i = 0; i < getSchema().getColumns().size(); i++) {
+                    String columnName = getSchema().getColumnName(i);
+                    String mergeField = containsCaseInsensitive(columnName,
+                                                                task.getMergeFields().get());
+
+                    if (!mergeField.isEmpty()) {
+                        String value = contactData.findValue(columnName).asText();
+                        mergeFields.put(mergeField, value);
+                    }
                 }
             }
             property.set("merged_fields", mergeFields);
@@ -80,15 +89,22 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
 
         String content = jsonMapper.writeValueAsString(subscribers);
         JsonNode response = client.sendRequest(endpoint, HttpMethod.POST, content, task);
-        List<String> errors = response.findPath("errors").findValuesAsText("error");
+        return jsonMapper.treeToValue(response, ReportResponse.class);
+    }
 
-        StringBuilder errorMessage = new StringBuilder();
-        if (!errors.isEmpty()) {
-            for (String error : errors) {
-                errorMessage.append("\n").append(error);
+    @Override
+    void handleErrors(List<ErrorResponse> errorResponses)
+    {
+        if (!errorResponses.isEmpty()) {
+            StringBuilder errorMessage = new StringBuilder();
+
+            for (ErrorResponse errorResponse : errorResponses) {
+                errorMessage.append(MessageFormat.format("\nEmail `{0}` failed cause `{1}`",
+                                                         MailChimpHelper.maskEmail(errorResponse.getEmailAddress()),
+                                                         MailChimpHelper.maskEmail(errorResponse.getError())));
             }
 
-            Throwables.propagate(new DataException(errorMessage.toString()));
+            LOG.error(errorMessage.toString());
         }
     }
 }

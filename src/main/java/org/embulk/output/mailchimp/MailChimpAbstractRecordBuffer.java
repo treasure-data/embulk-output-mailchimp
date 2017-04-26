@@ -9,6 +9,8 @@ import org.embulk.base.restclient.jackson.JacksonServiceRecord;
 import org.embulk.base.restclient.record.RecordBuffer;
 import org.embulk.base.restclient.record.ServiceRecord;
 import org.embulk.config.TaskReport;
+import org.embulk.output.mailchimp.model.ErrorResponse;
+import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
@@ -33,6 +35,12 @@ public abstract class MailChimpAbstractRecordBuffer
     private long totalCount;
     private List<JsonNode> records;
 
+    /**
+     * Instantiates a new Mail chimp abstract record buffer.
+     *
+     * @param schema the schema
+     * @param task   the task
+     */
     public MailChimpAbstractRecordBuffer(final Schema schema, final MailChimpOutputPluginDelegate.PluginTask task)
     {
         this.schema = schema;
@@ -57,11 +65,17 @@ public abstract class MailChimpAbstractRecordBuffer
 
             records.add(record);
             if (requestCount >= MAX_RECORD_PER_BATCH_REQUEST) {
-                push(records, task);
+                ReportResponse reportResponse = push(records, task);
 
                 if (totalCount % 1000 == 0) {
-                    LOG.info("Inserted {} records", totalCount);
+                    LOG.info("Pushed {} records", totalCount);
                 }
+
+                LOG.info("{} records created, {} records updated, {} records failed",
+                         reportResponse.getTotalCreated(),
+                         reportResponse.getTotalUpdated(),
+                         reportResponse.getErrorCount());
+                handleErrors(reportResponse.getErrors());
 
                 records = new ArrayList<>();
                 requestCount = 0;
@@ -83,25 +97,53 @@ public abstract class MailChimpAbstractRecordBuffer
     {
         try {
             if (records.size() > 0) {
-                push(records, task);
-                LOG.info("Inserted {} records", records.size());
+                ReportResponse reportResponse = push(records, task);
+                LOG.info("Pushed {} records", records.size());
+                LOG.info("{} records created, {} records updated, {} records failed",
+                         reportResponse.getTotalCreated(),
+                         reportResponse.getTotalUpdated(),
+                         reportResponse.getErrorCount());
+                handleErrors(reportResponse.getErrors());
             }
 
             cleanUp();
-            return Exec.newTaskReport().set("inserted", totalCount);
+            return Exec.newTaskReport().set("pushed", totalCount);
         }
         catch (JsonProcessingException jpe) {
             throw new DataException(jpe);
         }
     }
 
+    /**
+     * Gets schema.
+     *
+     * @return the schema
+     */
     public Schema getSchema()
     {
         return schema;
     }
 
+    /**
+     * Clean up.
+     */
     abstract void cleanUp();
 
-    abstract void push(final List<JsonNode> data, final MailChimpOutputPluginDelegate.PluginTask task)
+    /**
+     * Push payload data to MailChimp API and get @{@link ReportResponse}
+     *
+     * @param data the data
+     * @param task the task
+     * @return the report response
+     * @throws JsonProcessingException the json processing exception
+     */
+    abstract ReportResponse push(final List<JsonNode> data, final MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException;
+
+    /**
+     * Handle @{@link ErrorResponse} from MailChimp API if exists.
+     *
+     * @param errorResponses the error responses
+     */
+    abstract void handleErrors(final List<ErrorResponse> errorResponses);
 }
