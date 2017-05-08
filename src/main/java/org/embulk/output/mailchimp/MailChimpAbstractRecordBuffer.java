@@ -200,6 +200,11 @@ public abstract class MailChimpAbstractRecordBuffer
         return mapper;
     }
 
+    public Map<String, String> getCategories()
+    {
+        return categories;
+    }
+
     /**
      * Clean up.
      */

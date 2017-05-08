@@ -23,7 +23,6 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.util.List;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -41,7 +40,6 @@ public class TestMailChimpOutputPlugin
     private ConfigSource baseConfig;
     private MailChimpOutputPluginDelegate.PluginTask task;
     private MailChimpOutputPlugin plugin;
-    private String resourcesPath;
 
     @Before
     public void setup()
@@ -49,10 +47,6 @@ public class TestMailChimpOutputPlugin
         plugin = new MailChimpOutputPlugin();
         baseConfig = config();
         task = baseConfig.loadConfig(MailChimpOutputPluginDelegate.PluginTask.class);
-        URL csvFilePath = getClass().getClassLoader().getResource("csv");
-        if (csvFilePath != null) {
-            resourcesPath = new File(csvFilePath.getFile()).getAbsolutePath();
-        }
     }
 
     @After
