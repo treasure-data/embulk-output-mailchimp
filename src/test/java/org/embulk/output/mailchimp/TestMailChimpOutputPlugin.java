@@ -1,12 +1,17 @@
 package org.embulk.output.mailchimp;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.guava.GuavaModule;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import org.embulk.EmbulkTestRuntime;
 import org.embulk.config.ConfigException;
+import org.embulk.config.ConfigLoader;
 import org.embulk.config.ConfigSource;
+import org.embulk.config.ModelManager;
 import org.embulk.config.TaskReport;
 import org.embulk.config.TaskSource;
-import org.embulk.output.mailchimp.test.EmbulkTestsWithGuava;
 import org.embulk.spi.Exec;
 import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.Schema;
@@ -17,10 +22,13 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 
-import static org.embulk.output.mailchimp.CircleCICredentials.credentials;
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assume.assumeThat;
 
 /**
  * Created by thangnc on 4/14/17.
@@ -39,7 +47,7 @@ public class TestMailChimpOutputPlugin
     public void setup()
     {
         plugin = new MailChimpOutputPlugin();
-        baseConfig = EmbulkTestsWithGuava.config("EMBULK_OUTPUT_MAILCHIMP_TEST_CONFIG").merge(credentials());
+        baseConfig = config();
         task = baseConfig.loadConfig(MailChimpOutputPluginDelegate.PluginTask.class);
         URL csvFilePath = getClass().getClassLoader().getResource("csv");
         if (csvFilePath != null) {
@@ -126,6 +134,25 @@ public class TestMailChimpOutputPlugin
         output.finish();
 
         plugin.transaction(config, schema, 0, new OutputControl());
+    }
+
+    /**
+     * Load plugin config with Guava & Joda support
+     */
+    private static ConfigSource config()
+    {
+        String path = System.getenv("EMBULK_OUTPUT_MAILCHIMP_TEST_CONFIG");
+        assumeThat(isNullOrEmpty(path), is(false));
+        try {
+            ObjectMapper mapper = new ObjectMapper()
+                    .registerModule(new GuavaModule())
+                    .registerModule(new JodaModule());
+            ConfigLoader configLoader = new ConfigLoader(new ModelManager(null, mapper));
+            return configLoader.fromYamlFile(new File(path));
+        }
+        catch (IOException ex) {
+            throw Throwables.propagate(ex);
+        }
     }
 
     private class OutputControl implements OutputPlugin.Control

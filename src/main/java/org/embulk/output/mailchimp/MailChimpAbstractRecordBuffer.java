@@ -65,7 +65,8 @@ public abstract class MailChimpAbstractRecordBuffer
         // The reason why we put categories validation here because we can not share data between instance.
         try {
             categories = findIdsByCategoryName(task);
-            if (categories.size() != task.getInterestCategories().get().size()) {
+            if (task.getInterestCategories().isPresent()
+                    && categories.size() != task.getInterestCategories().get().size()) {
                 throw new ConfigException("Invalid interest category names");
             }
         }

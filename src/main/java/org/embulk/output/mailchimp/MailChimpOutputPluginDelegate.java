@@ -73,7 +73,7 @@ public class MailChimpOutputPluginDelegate
         Optional<List<String>> getMergeFields();
 
         @Config("interest_categories")
-        @ConfigDefault("nul")
+        @ConfigDefault("null")
         Optional<List<String>> getInterestCategories();
 
         @Config("update_existing")
