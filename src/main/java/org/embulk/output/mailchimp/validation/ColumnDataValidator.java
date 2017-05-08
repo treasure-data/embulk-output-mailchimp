@@ -24,7 +24,7 @@ public final class ColumnDataValidator
      * @param requiredColumnName the required column name
      * @return the boolean
      */
-    public static boolean checkRequiredColumnName(final Schema schema, final String requiredColumnName)
+    public static boolean checkExistColumnName(final Schema schema, final String requiredColumnName)
     {
         int indexOfRequiredColumn = -1;
 
@@ -45,10 +45,10 @@ public final class ColumnDataValidator
      * @param columns the columns
      * @return the boolean
      */
-    public static boolean checkRequiredColumns(final Schema schema, final String... columns)
+    public static boolean checkExistColumns(final Schema schema, final String... columns)
     {
         for (String column : columns) {
-            if (!checkRequiredColumnName(schema, column)) {
+            if (!checkExistColumnName(schema, column)) {
                 LOG.error("Column `{}` could not be found to create or update data.", column);
                 return false;
             }

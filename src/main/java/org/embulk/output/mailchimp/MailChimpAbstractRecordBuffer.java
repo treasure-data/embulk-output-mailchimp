@@ -1,18 +1,22 @@
 package org.embulk.output.mailchimp;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Throwables;
 import org.embulk.base.restclient.jackson.JacksonServiceRecord;
 import org.embulk.base.restclient.record.RecordBuffer;
 import org.embulk.base.restclient.record.ServiceRecord;
+import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
 import org.embulk.output.mailchimp.model.ErrorResponse;
 import org.embulk.output.mailchimp.model.ReportResponse;
+import org.embulk.spi.Column;
 import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
@@ -20,9 +24,9 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-
-import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
+import java.util.Map;
 
 /**
  * Created by thangnc on 4/14/17.
@@ -31,6 +35,7 @@ public abstract class MailChimpAbstractRecordBuffer
         extends RecordBuffer
 {
     private static final Logger LOG = Exec.getLogger(MailChimpAbstractRecordBuffer.class);
+    protected static final String MAILCHIMP_API = "https://us15.api.mailchimp.com";
     private static final int MAX_RECORD_PER_BATCH_REQUEST = 500;
     private final MailChimpOutputPluginDelegate.PluginTask task;
     private final ObjectMapper mapper;
@@ -38,6 +43,7 @@ public abstract class MailChimpAbstractRecordBuffer
     private int requestCount;
     private long totalCount;
     private List<JsonNode> records;
+    private Map<String, String> categories;
 
     /**
      * Instantiates a new Mail chimp abstract record buffer.
@@ -51,8 +57,21 @@ public abstract class MailChimpAbstractRecordBuffer
         this.task = task;
         this.mapper = new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
+                .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
         this.records = new ArrayList<>();
+        this.categories = new HashMap<>();
+
+        // Should loop the ids and get the name of interest categories.
+        // The reason why we put categories validation here because we can not share data between instance.
+        try {
+            categories = findIdsByCategoryName(task);
+            if (categories.size() != task.getInterestCategories().get().size()) {
+                throw new ConfigException("Invalid interest category names");
+            }
+        }
+        catch (JsonProcessingException jpe) {
+            throw new DataException(jpe);
+        }
     }
 
     @Override
@@ -134,42 +153,40 @@ public abstract class MailChimpAbstractRecordBuffer
         ArrayNode arrayOfEmailSubscribers = mapper.createArrayNode();
 
         for (JsonNode contactData : data) {
-            ObjectNode property = mapper.createObjectNode();
+            ObjectNode property = JsonNodeFactory.instance.objectNode();
             property.put("email_address", contactData.findPath("email").asText());
             property.put("status", contactData.findPath("status").asText());
 
-            ObjectNode mergeFields = mapper.createObjectNode();
-            // The reason to use this kind of loop because we need to get explicit merge field instead of column name
+            ObjectNode mergeFields = JsonNodeFactory.instance.objectNode();
             if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
-                for (int i = 0; i < getSchema().getColumns().size(); i++) {
-                    String columnName = getSchema().getColumnName(i);
-                    String mergeField = containsCaseInsensitive(columnName,
-                                                                task.getMergeFields().get());
-
-                    if (!mergeField.isEmpty()) {
-                        String value = contactData.findValue(columnName).asText();
-                        mergeFields.put(mergeField, value);
+                for (final Column column : schema.getColumns()) {
+                    if (task.getMergeFields().get().contains(column.getName().toUpperCase())) {
+                        String value = contactData.findValue(column.getName()).asText();
+                        mergeFields.put(column.getName().toUpperCase(), value);
                     }
                 }
             }
+
+            ObjectNode interests = JsonNodeFactory.instance.objectNode();
+            if (task.getInterestCategories().isPresent() && !task.getInterestCategories().get().isEmpty()
+                    && !categories.keySet().isEmpty()) {
+                for (final Column column : schema.getColumns()) {
+                    if (categories.keySet().contains(column.getName().toLowerCase())) {
+                        String value = contactData.findValue(column.getName()).asText();
+                        interests.put(categories.get(column.getName().toLowerCase()), Boolean.valueOf(value).booleanValue());
+                    }
+                }
+            }
+
             property.set("merged_fields", mergeFields);
+            property.set("interests", interests);
             arrayOfEmailSubscribers.add(property);
         }
 
-        ObjectNode subscribers = mapper.createObjectNode();
+        ObjectNode subscribers = JsonNodeFactory.instance.objectNode();
         subscribers.putArray("members").addAll(arrayOfEmailSubscribers);
         subscribers.put("update_existing", task.getUpdateExisting());
         return subscribers;
-    }
-
-    /**
-     * Gets schema.
-     *
-     * @return the schema
-     */
-    public Schema getSchema()
-    {
-        return schema;
     }
 
     /**
@@ -204,4 +221,7 @@ public abstract class MailChimpAbstractRecordBuffer
      * @param errorResponses the error responses
      */
     abstract void handleErrors(final List<ErrorResponse> errorResponses);
+
+    abstract Map<String, String> findIdsByCategoryName(final MailChimpOutputPluginDelegate.PluginTask task)
+            throws JsonProcessingException;
 }

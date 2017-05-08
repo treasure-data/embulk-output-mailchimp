@@ -20,7 +20,7 @@ import org.slf4j.Logger;
 import java.util.List;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static org.embulk.output.mailchimp.validation.ColumnDataValidator.checkRequiredColumns;
+import static org.embulk.output.mailchimp.validation.ColumnDataValidator.checkExistColumns;
 
 /**
  * Created by thangnc on 4/14/17.
@@ -72,6 +72,10 @@ public class MailChimpOutputPluginDelegate
         @ConfigDefault("null")
         Optional<List<String>> getMergeFields();
 
+        @Config("interest_categories")
+        @ConfigDefault("nul")
+        Optional<List<String>> getInterestCategories();
+
         @Config("update_existing")
         @ConfigDefault("false")
         boolean getUpdateExisting();
@@ -103,7 +107,7 @@ public class MailChimpOutputPluginDelegate
             throw new ConfigException("'list_id' must not be null or empty string");
         }
 
-        if (!checkRequiredColumns(schema, "email", "status")) {
+        if (!checkExistColumns(schema, "email", "status")) {
             throw new ConfigException("Columns ['email', 'status'] must not be null or empty string");
         }
     }

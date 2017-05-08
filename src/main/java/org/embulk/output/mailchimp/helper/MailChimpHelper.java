@@ -23,17 +23,6 @@ public final class MailChimpHelper
     }
 
     /**
-     * The entry point of application.
-     *
-     * @param args the input arguments
-     */
-    public static void main(String[] args)
-    {
-        String email = maskEmail("thang0001@example.com looks fake or invalid, please enter a real email address.");
-        System.out.print(email);
-    }
-
-    /**
      * This method help to get explicit merge fields with column schema without case-sensitive
      *
      * @param s    the s
