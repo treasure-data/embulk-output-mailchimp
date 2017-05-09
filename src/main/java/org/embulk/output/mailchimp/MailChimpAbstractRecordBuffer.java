@@ -22,6 +22,8 @@ import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.slf4j.Logger;
 
+import javax.annotation.PostConstruct;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -60,7 +62,11 @@ public abstract class MailChimpAbstractRecordBuffer
                 .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
         this.records = new ArrayList<>();
         this.categories = new HashMap<>();
+    }
 
+    @PostConstruct
+    private void validateInterestCategories()
+    {
         // Should loop the ids and get the name of interest categories.
         // The reason why we put categories validation here because we can not share data between instance.
         try {
