@@ -58,7 +58,7 @@ public enum MemberStatus
         }
 
         throw new ConfigException(
-                String.format("Unknown target '%s'. Supported statuses are [subscribed, pending, unsubscribed, cleaned]",
+                String.format("Unknown status '%s'. Supported statuses are [subscribed, pending, unsubscribed, cleaned]",
                               type));
     }
 }

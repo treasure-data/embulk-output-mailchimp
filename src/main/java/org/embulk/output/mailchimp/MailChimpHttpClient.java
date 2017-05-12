@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.node.MissingNode;
 import com.google.common.base.Throwables;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.HttpResponseException;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 import org.eclipse.jetty.client.util.StringContentProvider;
@@ -66,43 +65,37 @@ public class MailChimpHttpClient
     {
         final String authorizationHeader = getAuthorizationHeader(task);
 
-        try {
-            String responseBody = retryHelper.requestWithRetry(
-                    new StringJetty92ResponseEntityReader(task.getTimeoutMillis()),
-                    new Jetty92SingleRequester()
+        String responseBody = retryHelper.requestWithRetry(
+                new StringJetty92ResponseEntityReader(task.getTimeoutMillis()),
+                new Jetty92SingleRequester()
+                {
+                    @Override
+                    public void requestOnce(HttpClient client, Response.Listener responseListener)
                     {
-                        @Override
-                        public void requestOnce(HttpClient client, Response.Listener responseListener)
-                        {
-                            Request request = client
-                                    .newRequest(endpoint)
-                                    .accept("application/json")
-                                    .method(method);
-                            if (method == HttpMethod.POST || method == HttpMethod.PUT) {
-                                request.content(new StringContentProvider(content), "application/json");
-                            }
-
-                            if (!authorizationHeader.isEmpty()) {
-                                request.header("Authorization", authorizationHeader);
-                            }
-                            request.send(responseListener);
+                        Request request = client
+                                .newRequest(endpoint)
+                                .accept("application/json")
+                                .method(method);
+                        if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+                            request.content(new StringContentProvider(content), "application/json");
                         }
 
-                        @Override
-                        public boolean isResponseStatusToRetry(Response response)
-                        {
-                            int status = response.getStatus();
-                            return status == 429 || status / 100 != 4;
+                        if (!authorizationHeader.isEmpty()) {
+                            request.header("Authorization", authorizationHeader);
                         }
-                    });
+                        request.send(responseListener);
+                    }
 
-            return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
-        }
-        catch (HttpResponseException ex) {
-            LOG.error("Exception occurred while sending request: {}", ex.getMessage());
+                    @Override
+                    public boolean isResponseStatusToRetry(Response response)
+                    {
+                        int status = response.getStatus();
+                        return status == 429 || status / 100 != 4;
+                    }
+                });
 
-            throw ex;
-        }
+        return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
+
     }
 
     private JsonNode parseJson(final String json)
