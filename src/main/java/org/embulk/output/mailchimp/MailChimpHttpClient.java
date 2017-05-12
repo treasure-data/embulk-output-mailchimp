@@ -95,7 +95,6 @@ public class MailChimpHttpClient
                 });
 
         return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
-
     }
 
     private JsonNode parseJson(final String json)

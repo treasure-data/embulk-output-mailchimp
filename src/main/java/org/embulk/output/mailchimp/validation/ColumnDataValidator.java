@@ -1,9 +1,7 @@
 package org.embulk.output.mailchimp.validation;
 
 import org.embulk.spi.Column;
-import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
-import org.slf4j.Logger;
 
 import java.util.Arrays;
 
