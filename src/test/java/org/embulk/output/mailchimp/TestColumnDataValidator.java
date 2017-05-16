@@ -5,6 +5,8 @@ import org.embulk.spi.Schema;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static org.embulk.spi.type.Types.STRING;
+
 /**
  * Created by thangnc on 5/12/17.
  */
@@ -14,10 +16,10 @@ public class TestColumnDataValidator
     public void test_checkExistColumns_valid()
     {
         Schema schema = Schema.builder()
-                .add("email", org.embulk.spi.type.Types.STRING)
-                .add("fname", org.embulk.spi.type.Types.STRING)
-                .add("lname", org.embulk.spi.type.Types.STRING)
-                .add("status", org.embulk.spi.type.Types.STRING)
+                .add("email", STRING)
+                .add("fname", STRING)
+                .add("lname", STRING)
+                .add("status", STRING)
                 .build();
 
         Assert.assertEquals("Column should be exists",
@@ -29,9 +31,9 @@ public class TestColumnDataValidator
     public void test_checkExistColumns_invalid()
     {
         Schema schema = Schema.builder()
-                .add("email", org.embulk.spi.type.Types.STRING)
-                .add("fname", org.embulk.spi.type.Types.STRING)
-                .add("lname", org.embulk.spi.type.Types.STRING)
+                .add("email", STRING)
+                .add("fname", STRING)
+                .add("lname", STRING)
                 .build();
 
         Assert.assertEquals("Column should be not exist",

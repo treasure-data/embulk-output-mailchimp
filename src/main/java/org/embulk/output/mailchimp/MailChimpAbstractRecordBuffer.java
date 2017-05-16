@@ -9,12 +9,16 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Multimap;
 import org.embulk.base.restclient.jackson.JacksonServiceRecord;
 import org.embulk.base.restclient.record.RecordBuffer;
 import org.embulk.base.restclient.record.ServiceRecord;
 import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
+import org.embulk.output.mailchimp.helper.MailChimpHelper;
 import org.embulk.output.mailchimp.model.ErrorResponse;
+import org.embulk.output.mailchimp.model.InterestResponse;
+import org.embulk.output.mailchimp.model.MemberStatus;
 import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.Column;
 import org.embulk.spi.DataException;
@@ -25,6 +29,7 @@ import org.slf4j.Logger;
 import javax.annotation.PostConstruct;
 
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -37,15 +42,18 @@ public abstract class MailChimpAbstractRecordBuffer
         extends RecordBuffer
 {
     private static final Logger LOG = Exec.getLogger(MailChimpAbstractRecordBuffer.class);
-    protected static final String MAILCHIMP_API = "https://us15.api.mailchimp.com";
     private static final int MAX_RECORD_PER_BATCH_REQUEST = 500;
+    /**
+     * The constant mailchimpEndpoint.
+     */
+    protected static String mailchimpEndpoint = "https://us15.api.mailchimp.com";
     private final MailChimpOutputPluginDelegate.PluginTask task;
     private final ObjectMapper mapper;
     private final Schema schema;
     private int requestCount;
     private long totalCount;
     private List<JsonNode> records;
-    private Map<String, String> categories;
+    private Map<String, InterestResponse> categories;
 
     /**
      * Instantiates a new Mail chimp abstract record buffer.
@@ -67,10 +75,14 @@ public abstract class MailChimpAbstractRecordBuffer
     @PostConstruct
     private void validateInterestCategories()
     {
-        // Should loop the ids and get the name of interest categories.
-        // The reason why we put categories validation here because we can not share data between instance.
         try {
-            categories = findIdsByCategoryName(task);
+            // Extract data center from meta data URL
+            String dc = extractDataCenter(task);
+            mailchimpEndpoint = MessageFormat.format("https://{0}.api.mailchimp.com", dc);
+
+            // Should loop the names and get the id of interest categories.
+            // The reason why we put categories validation here because we can not share data between instance.
+            categories = fetchIdsByCategoryNames(task);
             if (task.getInterestCategories().isPresent()
                     && categories.size() != task.getInterestCategories().get().size()) {
                 throw new ConfigException("Invalid interest category names");
@@ -155,9 +167,15 @@ public abstract class MailChimpAbstractRecordBuffer
      */
     ObjectNode processSubcribers(final List<JsonNode> data, final MailChimpOutputPluginDelegate.PluginTask task)
     {
-        LOG.info("Start to process subscribe data");
+        LOG.info("Start to process subscriber data");
 
-        ArrayNode arrayOfEmailSubscribers = mapper.createArrayNode();
+        ArrayNode arrayOfEmailSubscribers = JsonNodeFactory.instance.arrayNode();
+
+        // Validate member status before go to push data
+        Multimap<String, JsonNode> memberStatus = MailChimpHelper.extractMemberStatus(data);
+        for (String status : memberStatus.keySet()) {
+            MemberStatus.findByType(status);
+        }
 
         for (JsonNode contactData : data) {
             ObjectNode property = JsonNodeFactory.instance.objectNode();
@@ -180,7 +198,8 @@ public abstract class MailChimpAbstractRecordBuffer
                 for (final Column column : schema.getColumns()) {
                     if (categories.keySet().contains(column.getName().toLowerCase())) {
                         String value = contactData.findValue(column.getName()).asText();
-                        interests.put(categories.get(column.getName().toLowerCase()), Boolean.valueOf(value).booleanValue());
+                        interests.put(categories.get(column.getName().toLowerCase()).getId(),
+                                      Boolean.valueOf(value).booleanValue());
                     }
                 }
             }
@@ -206,7 +225,12 @@ public abstract class MailChimpAbstractRecordBuffer
         return mapper;
     }
 
-    public Map<String, String> getCategories()
+    /**
+     * Gets categories.
+     *
+     * @return the categories
+     */
+    public Map<String, InterestResponse> getCategories()
     {
         return categories;
     }
@@ -234,6 +258,23 @@ public abstract class MailChimpAbstractRecordBuffer
      */
     abstract void handleErrors(final List<ErrorResponse> errorResponses);
 
-    abstract Map<String, String> findIdsByCategoryName(final MailChimpOutputPluginDelegate.PluginTask task)
+    /**
+     * Find interest category ids by pre-defined group name which user input.
+     *
+     * @param task the task
+     * @return the map
+     * @throws JsonProcessingException the json processing exception
+     */
+    abstract Map<String, InterestResponse> fetchIdsByCategoryNames(final MailChimpOutputPluginDelegate.PluginTask task)
+            throws JsonProcessingException;
+
+    /**
+     * Extract data center from MailChimp v3 metadata.
+     *
+     * @param task the task
+     * @return the string
+     * @throws JsonProcessingException the json processing exception
+     */
+    abstract String extractDataCenter(final MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException;
 }

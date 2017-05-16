@@ -3,6 +3,8 @@ package org.embulk.output.mailchimp;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Function;
+import com.google.common.collect.Maps;
 import org.eclipse.jetty.http.HttpMethod;
 import org.embulk.output.mailchimp.helper.MailChimpHelper;
 import org.embulk.output.mailchimp.model.CategoriesResponse;
@@ -10,10 +12,13 @@ import org.embulk.output.mailchimp.model.ErrorResponse;
 import org.embulk.output.mailchimp.model.InterestCategoriesResponse;
 import org.embulk.output.mailchimp.model.InterestResponse;
 import org.embulk.output.mailchimp.model.InterestsResponse;
+import org.embulk.output.mailchimp.model.MetaDataResponse;
 import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.slf4j.Logger;
+
+import javax.annotation.Nullable;
 
 import java.text.MessageFormat;
 import java.util.HashMap;
@@ -52,7 +57,7 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
     public ReportResponse push(final ObjectNode node, MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException
     {
-        String endpoint = MessageFormat.format(MAILCHIMP_API + "/3.0/lists/{0}",
+        String endpoint = MessageFormat.format(mailchimpEndpoint + "/3.0/lists/{0}",
                                                task.getListId());
 
         JsonNode response = client.sendRequest(endpoint, HttpMethod.POST, node.toString(), task);
@@ -75,31 +80,59 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
         }
     }
 
-    Map<String, String> findIdsByCategoryName(final MailChimpOutputPluginDelegate.PluginTask task) throws JsonProcessingException
+    Map<String, InterestResponse> fetchIdsByCategoryNames(final MailChimpOutputPluginDelegate.PluginTask task)
+            throws JsonProcessingException
     {
-        Map<String, String> categories = new HashMap<>();
+        Map<String, InterestResponse> categories = new HashMap<>();
         if (task.getInterestCategories().isPresent() && !task.getInterestCategories().get().isEmpty()) {
             List<String> interestCategoryNames = task.getInterestCategories().get();
 
-            String endpoint = MessageFormat.format(MAILCHIMP_API + "/3.0/lists/{0}/interest-categories",
+            String endpoint = MessageFormat.format(mailchimpEndpoint + "/3.0/lists/{0}/interest-categories",
                                                    task.getListId());
 
             JsonNode response = client.sendRequest(endpoint, HttpMethod.GET, task);
-            InterestCategoriesResponse interestCategoriesResponse = getMapper().treeToValue(response, InterestCategoriesResponse.class);
+            InterestCategoriesResponse interestCategoriesResponse = getMapper().treeToValue(response,
+                                                                                            InterestCategoriesResponse.class);
             for (CategoriesResponse categoriesResponse : interestCategoriesResponse.getCategories()) {
-                String detailEndpoint = MessageFormat.format(MAILCHIMP_API + "/3.0/lists/{0}/interest-categories/{1}/interests",
+                String detailEndpoint = MessageFormat.format(mailchimpEndpoint + "/3.0/lists/{0}/interest-categories/{1}/interests",
                                                              task.getListId(),
                                                              categoriesResponse.getId());
                 response = client.sendRequest(detailEndpoint, HttpMethod.GET, task);
                 InterestsResponse interestsResponse = getMapper().treeToValue(response, InterestsResponse.class);
-                for (InterestResponse interest : interestsResponse.getInterests()) {
-                    if (interestCategoryNames.contains(interest.getName())) {
-                        categories.put(interest.getName().toLowerCase(), interest.getId());
-                    }
-                }
+
+                convertInterestCategoryToMap(interestCategoryNames, interestsResponse.getInterests());
+                categories.putAll(convertInterestCategoryToMap(interestCategoryNames, interestsResponse.getInterests()));
             }
         }
 
         return categories;
+    }
+
+    @Override
+    String extractDataCenter(MailChimpOutputPluginDelegate.PluginTask task) throws JsonProcessingException
+    {
+        JsonNode response = client.sendRequest("https://login.mailchimp.com/oauth2/metadata", HttpMethod.GET, task);
+        MetaDataResponse metaDataResponse = getMapper().treeToValue(response, MetaDataResponse.class);
+        return metaDataResponse.getDc();
+    }
+
+    private Map<String, InterestResponse> convertInterestCategoryToMap(final List<String> interestCategoryNames,
+                                                                       final List<InterestResponse> interestResponseList)
+    {
+        Function<InterestResponse, String> function = new Function<InterestResponse, String>()
+        {
+            @Nullable
+            @Override
+            public String apply(@Nullable InterestResponse input)
+            {
+                if (input != null && interestCategoryNames.contains(input.getName())) {
+                    return input.getName();
+                }
+
+                return null;
+            }
+        };
+
+        return Maps.uniqueIndex(interestResponseList, function);
     }
 }

@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.embulk.spi.type.Types.STRING;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assume.assumeThat;
 
@@ -103,9 +104,9 @@ public class TestMailChimpOutputPlugin
     {
         ConfigSource config = baseConfig;
         Schema schema = Schema.builder()
-                .add("firstname", org.embulk.spi.type.Types.STRING)
-                .add("lastname", org.embulk.spi.type.Types.STRING)
-                .add("status", org.embulk.spi.type.Types.STRING)
+                .add("firstname", STRING)
+                .add("lastname", STRING)
+                .add("status", STRING)
                 .build();
 
         final TransactionalPageOutput output = plugin.open(task.dump(), schema, 0);
@@ -119,9 +120,9 @@ public class TestMailChimpOutputPlugin
     {
         ConfigSource config = baseConfig;
         Schema schema = Schema.builder()
-                .add("email", org.embulk.spi.type.Types.STRING)
-                .add("fname", org.embulk.spi.type.Types.STRING)
-                .add("lname", org.embulk.spi.type.Types.STRING)
+                .add("email", STRING)
+                .add("fname", STRING)
+                .add("lname", STRING)
                 .build();
 
         final TransactionalPageOutput output = plugin.open(task.dump(), schema, 0);
@@ -161,10 +162,10 @@ public class TestMailChimpOutputPlugin
     private void doSetUpSchemaAndRun(final ConfigSource config, final MailChimpOutputPlugin plugin)
     {
         Schema schema = Schema.builder()
-                .add("email", org.embulk.spi.type.Types.STRING)
-                .add("fname", org.embulk.spi.type.Types.STRING)
-                .add("lname", org.embulk.spi.type.Types.STRING)
-                .add("status", org.embulk.spi.type.Types.STRING)
+                .add("email", STRING)
+                .add("fname", STRING)
+                .add("lname", STRING)
+                .add("status", STRING)
                 .build();
 
         final TransactionalPageOutput output = plugin.open(task.dump(), schema, 0);

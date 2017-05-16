@@ -1,10 +1,16 @@
 package org.embulk.output.mailchimp;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.google.common.collect.Multimap;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.extractMemberStatus;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.maskEmail;
 import static org.junit.Assert.assertEquals;
 
@@ -27,5 +33,22 @@ public class TestMailChimpHelper
         String expect = "FNAME";
         assertEquals("Merge field should match", expect, containsCaseInsensitive("fName",
                                                                                  Arrays.asList("FNAME", "LNAME")));
+    }
+
+    @Test
+    public void test_extractMemberStatus()
+    {
+        List<JsonNode> given = new ArrayList<>();
+        given.add(JsonNodeFactory.instance.objectNode().put("status", "subcribed").put("email", "thang@gmail.com"));
+        given.add(JsonNodeFactory.instance.objectNode().put("status", "pending").put("email", "thang123@gmail.com"));
+        given.add(JsonNodeFactory.instance.objectNode().put("status", "abc").put("email", "thang456@gmail.com"));
+        given.add(JsonNodeFactory.instance.objectNode().put("status", "pending").put("email", "thang789@gmail.com"));
+        given.add(JsonNodeFactory.instance.objectNode().put("status", "subcribed").put("email", "thang000@gmail.com"));
+
+        Multimap<String, JsonNode> statusMap = extractMemberStatus(given);
+        assertEquals("Status should match", 3, statusMap.keySet().size());
+        assertEquals("Status should contain keys", true, statusMap.containsKey("pending"));
+        assertEquals("Status should contain keys", true, statusMap.containsKey("subcribed"));
+        assertEquals("Status should contain keys", true, statusMap.containsKey("abc"));
     }
 }

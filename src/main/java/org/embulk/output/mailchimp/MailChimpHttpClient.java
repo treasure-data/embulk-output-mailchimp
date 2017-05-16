@@ -77,7 +77,7 @@ public class MailChimpHttpClient
                                 .accept("application/json")
                                 .method(method);
                         if (method == HttpMethod.POST || method == HttpMethod.PUT) {
-                            request.content(new StringContentProvider(content), "application/json");
+                            request.content(new StringContentProvider(content), "application/json;utf-8");
                         }
 
                         if (!authorizationHeader.isEmpty()) {

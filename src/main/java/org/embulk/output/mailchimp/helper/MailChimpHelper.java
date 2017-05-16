@@ -1,5 +1,12 @@
 package org.embulk.output.mailchimp.helper;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.Function;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
+
+import javax.annotation.Nullable;
+
 import java.util.List;
 
 /**
@@ -38,5 +45,26 @@ public final class MailChimpHelper
         }
 
         return "";
+    }
+
+    /**
+     * Extract member status to validate.
+     *
+     * @param data the data
+     * @return the multimap
+     */
+    public static Multimap<String, JsonNode> extractMemberStatus(final List<JsonNode> data)
+    {
+        Function<JsonNode, String> function = new Function<JsonNode, String>()
+        {
+            @Nullable
+            @Override
+            public String apply(@Nullable JsonNode input)
+            {
+                return input != null ? input.findPath("status").asText() : "";
+            }
+        };
+
+        return Multimaps.index(data, function);
     }
 }
