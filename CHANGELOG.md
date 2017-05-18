@@ -1,3 +1,6 @@
+## 0.3.0.3 - 2016-05-18
+- Fixed bug can not extract data center when use `api_key` as `auth_mode` [#15](https://github.com/treasure-data/embulk-output-mailchimp/pull/15)
+
 ## 0.3.0.2 - 2016-05-18
 - Enabled double_optin in configuration and use default status if schema has no column `status` [#15](https://github.com/treasure-data/embulk-output-mailchimp/pull/15)
 
