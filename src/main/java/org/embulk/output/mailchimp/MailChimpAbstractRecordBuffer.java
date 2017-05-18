@@ -33,6 +33,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.embulk.output.mailchimp.model.MemberStatus.PENDING;
+import static org.embulk.output.mailchimp.model.MemberStatus.SUBSCRIBED;
+import static org.embulk.output.mailchimp.validation.ColumnDataValidator.checkExistColumns;
+
 /**
  * Created by thangnc on 4/14/17.
  */
@@ -44,7 +48,7 @@ public abstract class MailChimpAbstractRecordBuffer
     /**
      * The constant mailchimpEndpoint.
      */
-    protected static String mailchimpEndpoint = "https://us15.api.mailchimp.com";
+    protected static String mailchimpEndpoint = "https://us.api.mailchimp.com";
     private final MailChimpOutputPluginDelegate.PluginTask task;
     private final ObjectMapper mapper;
     private final Schema schema;
@@ -52,6 +56,7 @@ public abstract class MailChimpAbstractRecordBuffer
     private long totalCount;
     private List<JsonNode> records;
     private Map<String, InterestResponse> categories;
+    private boolean useMemberStatusColumn;
 
     /**
      * Instantiates a new Mail chimp abstract record buffer.
@@ -68,6 +73,7 @@ public abstract class MailChimpAbstractRecordBuffer
                 .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
         this.records = new ArrayList<>();
         this.categories = new HashMap<>();
+        this.useMemberStatusColumn = checkExistColumns(schema, "status");
     }
 
     @Override
@@ -145,36 +151,22 @@ public abstract class MailChimpAbstractRecordBuffer
     ObjectNode processSubcribers(final List<JsonNode> data, final MailChimpOutputPluginDelegate.PluginTask task)
     {
         LOG.info("Start to process subscriber data");
-
-        try {
-            // Extract data center from meta data URL
-            String dc = extractDataCenter(task);
-            mailchimpEndpoint = MessageFormat.format("https://{0}.api.mailchimp.com", dc);
-
-            // Should loop the names and get the id of interest categories.
-            // The reason why we put categories validation here because we can not share data between instance.
-            categories = fetchInterestCategoriesByGroupNames(task);
-            if (task.getInterestCategories().isPresent()
-                    && categories.size() != task.getInterestCategories().get().size()) {
-                throw new ConfigException("Invalid interest category names");
-            }
-        }
-        catch (JsonProcessingException jpe) {
-            throw new DataException(jpe);
-        }
+        extractDataCenter();
+        validateInterestCategories();
+        validateMemberStatus(data);
 
         ArrayNode arrayOfEmailSubscribers = JsonNodeFactory.instance.arrayNode();
-
-        // Validate member status before go to push data
-        Multimap<String, JsonNode> memberStatus = MailChimpHelper.extractMemberStatus(data);
-        for (String status : memberStatus.keySet()) {
-            MemberStatus.findByType(status);
-        }
-
         for (JsonNode contactData : data) {
             ObjectNode property = JsonNodeFactory.instance.objectNode();
             property.put("email_address", contactData.findPath("email").asText());
-            property.put("status", contactData.findPath("status").asText());
+
+            // Enable use pre-defined status
+            if (useMemberStatusColumn) {
+                property.put("status", contactData.findPath("status").asText());
+            }
+            else {
+                property.put("status", task.getDoubleOptIn() ? PENDING.getType() : SUBSCRIBED.getType());
+            }
 
             ObjectNode mergeFields = JsonNodeFactory.instance.objectNode();
             if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
@@ -270,4 +262,43 @@ public abstract class MailChimpAbstractRecordBuffer
      */
     abstract String extractDataCenter(final MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException;
+
+    private void extractDataCenter()
+    {
+        try {
+            // Extract data center from meta data URL
+            String dc = extractDataCenter(task);
+            mailchimpEndpoint = MessageFormat.format("https://{0}.api.mailchimp.com", dc);
+        }
+        catch (JsonProcessingException jpe) {
+            throw new DataException(jpe);
+        }
+    }
+
+    private void validateInterestCategories()
+    {
+        try {
+            // Should loop the names and get the id of interest categories.
+            // The reason why we put categories validation here because we can not share data between instance.
+            categories = fetchInterestCategoriesByGroupNames(task);
+            if (task.getInterestCategories().isPresent()
+                    && categories.size() != task.getInterestCategories().get().size()) {
+                throw new ConfigException("Invalid interest category names");
+            }
+        }
+        catch (JsonProcessingException jpe) {
+            throw new DataException(jpe);
+        }
+    }
+
+    private void validateMemberStatus(final List<JsonNode> data)
+    {
+        if (useMemberStatusColumn) {
+            // Validate member status before go to push data
+            Multimap<String, JsonNode> memberStatus = MailChimpHelper.extractMemberStatus(data);
+            for (String status : memberStatus.keySet()) {
+                MemberStatus.findByType(status);
+            }
+        }
+    }
 }
