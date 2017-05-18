@@ -115,22 +115,6 @@ public class TestMailChimpOutputPlugin
         plugin.transaction(config, schema, 0, new OutputControl());
     }
 
-    @Test(expected = ConfigException.class)
-    public void test_config_invalidWithColumnStatusRequires()
-    {
-        ConfigSource config = baseConfig;
-        Schema schema = Schema.builder()
-                .add("email", STRING)
-                .add("fname", STRING)
-                .add("lname", STRING)
-                .build();
-
-        final TransactionalPageOutput output = plugin.open(task.dump(), schema, 0);
-        output.finish();
-
-        plugin.transaction(config, schema, 0, new OutputControl());
-    }
-
     /**
      * Load plugin config with Guava & Joda support
      */

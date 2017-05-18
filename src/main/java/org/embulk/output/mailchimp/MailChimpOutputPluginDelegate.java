@@ -54,7 +54,7 @@ public class MailChimpOutputPluginDelegate
         int getTimeoutMillis();
 
         @Config("auth_method")
-        @ConfigDefault("access_token")
+        @ConfigDefault("api_key")
         AuthMethod getAuthMethod();
 
         @Config("apikey")
