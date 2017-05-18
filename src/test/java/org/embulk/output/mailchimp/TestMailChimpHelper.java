@@ -7,6 +7,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
@@ -30,9 +31,9 @@ public class TestMailChimpHelper
     @Test
     public void test_containsCaseInsensitive_validMergeFields()
     {
-        String expect = "FNAME";
-        assertEquals("Merge field should match", expect, containsCaseInsensitive("fName",
-                                                                                 Arrays.asList("FNAME", "LNAME")));
+        String expect = "United State";
+        assertEquals("Interest category should match", expect, containsCaseInsensitive("united state",
+                                                                                       new HashSet<>(Arrays.asList("Donating", "United State"))));
     }
 
     @Test

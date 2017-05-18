@@ -26,8 +26,6 @@ import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.slf4j.Logger;
 
-import javax.annotation.PostConstruct;
-
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -70,27 +68,6 @@ public abstract class MailChimpAbstractRecordBuffer
                 .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
         this.records = new ArrayList<>();
         this.categories = new HashMap<>();
-    }
-
-    @PostConstruct
-    private void validateInterestCategories()
-    {
-        try {
-            // Extract data center from meta data URL
-            String dc = extractDataCenter(task);
-            mailchimpEndpoint = MessageFormat.format("https://{0}.api.mailchimp.com", dc);
-
-            // Should loop the names and get the id of interest categories.
-            // The reason why we put categories validation here because we can not share data between instance.
-            categories = fetchIdsByCategoryNames(task);
-            if (task.getInterestCategories().isPresent()
-                    && categories.size() != task.getInterestCategories().get().size()) {
-                throw new ConfigException("Invalid interest category names");
-            }
-        }
-        catch (JsonProcessingException jpe) {
-            throw new DataException(jpe);
-        }
     }
 
     @Override
@@ -169,6 +146,23 @@ public abstract class MailChimpAbstractRecordBuffer
     {
         LOG.info("Start to process subscriber data");
 
+        try {
+            // Extract data center from meta data URL
+            String dc = extractDataCenter(task);
+            mailchimpEndpoint = MessageFormat.format("https://{0}.api.mailchimp.com", dc);
+
+            // Should loop the names and get the id of interest categories.
+            // The reason why we put categories validation here because we can not share data between instance.
+            categories = fetchInterestCategoriesByGroupNames(task);
+            if (task.getInterestCategories().isPresent()
+                    && categories.size() != task.getInterestCategories().get().size()) {
+                throw new ConfigException("Invalid interest category names");
+            }
+        }
+        catch (JsonProcessingException jpe) {
+            throw new DataException(jpe);
+        }
+
         ArrayNode arrayOfEmailSubscribers = JsonNodeFactory.instance.arrayNode();
 
         // Validate member status before go to push data
@@ -193,8 +187,7 @@ public abstract class MailChimpAbstractRecordBuffer
             }
 
             ObjectNode interests = JsonNodeFactory.instance.objectNode();
-            if (task.getInterestCategories().isPresent() && !task.getInterestCategories().get().isEmpty()
-                    && !categories.keySet().isEmpty()) {
+            if (task.getInterestCategories().isPresent() && !task.getInterestCategories().get().isEmpty()) {
                 for (final Column column : schema.getColumns()) {
                     if (categories.keySet().contains(column.getName().toLowerCase())) {
                         String value = contactData.findValue(column.getName()).asText();
@@ -204,7 +197,7 @@ public abstract class MailChimpAbstractRecordBuffer
                 }
             }
 
-            property.set("merged_fields", mergeFields);
+            property.set("merge_fields", mergeFields);
             property.set("interests", interests);
             arrayOfEmailSubscribers.add(property);
         }
@@ -265,7 +258,7 @@ public abstract class MailChimpAbstractRecordBuffer
      * @return the map
      * @throws JsonProcessingException the json processing exception
      */
-    abstract Map<String, InterestResponse> fetchIdsByCategoryNames(final MailChimpOutputPluginDelegate.PluginTask task)
+    abstract Map<String, InterestResponse> fetchInterestCategoriesByGroupNames(final MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException;
 
     /**
