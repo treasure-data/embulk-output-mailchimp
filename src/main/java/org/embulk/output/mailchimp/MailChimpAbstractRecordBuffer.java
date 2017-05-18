@@ -48,7 +48,7 @@ public abstract class MailChimpAbstractRecordBuffer
     /**
      * The constant mailchimpEndpoint.
      */
-    protected static String mailchimpEndpoint = "https://us.api.mailchimp.com";
+    protected static String mailchimpEndpoint = "https://{0}.api.mailchimp.com/3.0";
     private final MailChimpOutputPluginDelegate.PluginTask task;
     private final ObjectMapper mapper;
     private final Schema schema;
@@ -151,7 +151,7 @@ public abstract class MailChimpAbstractRecordBuffer
     ObjectNode processSubcribers(final List<JsonNode> data, final MailChimpOutputPluginDelegate.PluginTask task)
     {
         LOG.info("Start to process subscriber data");
-        extractDataCenter();
+        extractDataCenterBasedOnAuthMethod();
         validateInterestCategories();
         validateMemberStatus(data);
 
@@ -263,12 +263,12 @@ public abstract class MailChimpAbstractRecordBuffer
     abstract String extractDataCenter(final MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException;
 
-    private void extractDataCenter()
+    private void extractDataCenterBasedOnAuthMethod()
     {
         try {
             // Extract data center from meta data URL
             String dc = extractDataCenter(task);
-            mailchimpEndpoint = MessageFormat.format("https://{0}.api.mailchimp.com", dc);
+            mailchimpEndpoint = MessageFormat.format(mailchimpEndpoint, dc);
         }
         catch (JsonProcessingException jpe) {
             throw new DataException(jpe);

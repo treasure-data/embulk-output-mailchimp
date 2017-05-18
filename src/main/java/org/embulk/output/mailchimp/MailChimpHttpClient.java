@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.google.common.base.Throwables;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
@@ -121,7 +120,7 @@ public class MailChimpHttpClient
                 return "OAuth " + task.getAccessToken().orNull();
             case API_KEY:
                 return "Basic " + Base64Variants.MIME_NO_LINEFEEDS
-                        .encode((RandomStringUtils.randomAlphabetic(10) + ":" + task.getApikey().orNull()).getBytes());
+                        .encode(("apikey" + ":" + task.getApikey().orNull()).getBytes());
             default:
                 throw new ConfigException("Not supported method");
         }
