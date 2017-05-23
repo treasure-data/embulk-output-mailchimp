@@ -3,3 +3,6 @@ auth_method: api_key
 apikey: xxxxxxxxxxxxxxxxxxx
 access_token: xxxxxxxxxxxxxxxxxxx
 list_id: xxxxxxxxxxxxxxxxxxx
+email_column: email
+fname_column: fname
+lname_column: lname
