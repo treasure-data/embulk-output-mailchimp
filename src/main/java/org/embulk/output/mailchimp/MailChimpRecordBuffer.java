@@ -4,8 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import org.eclipse.jetty.http.HttpMethod;
 import org.embulk.config.ConfigException;
@@ -86,10 +86,10 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
         }
     }
 
-    Map<String, InterestResponse> fetchInterestCategoriesByGroupNames(final MailChimpOutputPluginDelegate.PluginTask task)
+    Map<String, Map<String, InterestResponse>> extractInterestCategoriesByGroupNames(final MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException
     {
-        Map<String, InterestResponse> categories = new HashMap<>();
+        Map<String, Map<String, InterestResponse>> categories = new HashMap<>();
         if (task.getInterestCategories().isPresent() && !task.getInterestCategories().get().isEmpty()) {
             List<String> interestCategoryNames = task.getInterestCategories().get();
 
@@ -99,13 +99,36 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
             JsonNode response = client.sendRequest(endpoint, HttpMethod.GET, task);
             InterestCategoriesResponse interestCategoriesResponse = getMapper().treeToValue(response,
                                                                                             InterestCategoriesResponse.class);
+
+            Function<CategoriesResponse, String> function = new Function<CategoriesResponse, String>()
+            {
+                @Override
+                public String apply(CategoriesResponse input)
+                {
+                    return input.getTitle().toLowerCase();
+                }
+            };
+
+            // Transform to a list of available category names and validate with data that user input
+            ImmutableList<String> availableCategories = FluentIterable
+                    .from(interestCategoriesResponse.getCategories())
+                    .transform(function)
+                    .toList();
+
+            for (String category : interestCategoryNames) {
+                if (!availableCategories.contains(category)) {
+                    throw new ConfigException("Invalid interest category name: '" + category + "'");
+                }
+            }
+
             for (CategoriesResponse categoriesResponse : interestCategoriesResponse.getCategories()) {
                 String detailEndpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/interest-categories/{1}/interests",
                                                              task.getListId(),
                                                              categoriesResponse.getId());
                 response = client.sendRequest(detailEndpoint, HttpMethod.GET, task);
                 InterestsResponse interestsResponse = getMapper().treeToValue(response, InterestsResponse.class);
-                categories.putAll(convertInterestCategoryToMap(interestCategoryNames, interestsResponse.getInterests()));
+                categories.put(categoriesResponse.getTitle().toLowerCase(),
+                               convertInterestCategoryToMap(interestsResponse.getInterests()));
             }
         }
 
@@ -133,33 +156,18 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
         }
     }
 
-    private Map<String, InterestResponse> convertInterestCategoryToMap(final List<String> interestCategoryNames,
-                                                                       final List<InterestResponse> interestResponseList)
+    private Map<String, InterestResponse> convertInterestCategoryToMap(final List<InterestResponse> interestResponseList)
     {
-        Predicate<InterestResponse> predicate = new Predicate<InterestResponse>()
-        {
-            @Override
-            public boolean apply(@Nullable InterestResponse input)
-            {
-                return input != null && interestCategoryNames.contains(input.getName());
-            }
-        };
-
         Function<InterestResponse, String> function = new Function<InterestResponse, String>()
         {
             @Override
             public String apply(@Nullable InterestResponse input)
             {
-                if (input != null && interestCategoryNames.contains(input.getName())) {
-                    return input.getName().toLowerCase();
-                }
-
-                return "none";
+                return input.getName();
             }
         };
 
         return Maps.uniqueIndex(FluentIterable.from(interestResponseList)
-                                        .filter(predicate)
                                         .toList(),
                                 function);
     }

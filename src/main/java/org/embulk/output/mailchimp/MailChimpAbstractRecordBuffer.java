@@ -5,20 +5,17 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Function;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Multimap;
+import com.google.common.collect.FluentIterable;
 import org.embulk.base.restclient.jackson.JacksonServiceRecord;
 import org.embulk.base.restclient.record.RecordBuffer;
 import org.embulk.base.restclient.record.ServiceRecord;
-import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
-import org.embulk.output.mailchimp.helper.MailChimpHelper;
 import org.embulk.output.mailchimp.model.ErrorResponse;
 import org.embulk.output.mailchimp.model.InterestResponse;
-import org.embulk.output.mailchimp.model.MemberStatus;
 import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.Column;
 import org.embulk.spi.DataException;
@@ -35,7 +32,6 @@ import java.util.Map;
 
 import static org.embulk.output.mailchimp.model.MemberStatus.PENDING;
 import static org.embulk.output.mailchimp.model.MemberStatus.SUBSCRIBED;
-import static org.embulk.output.mailchimp.validation.ColumnDataValidator.checkExistColumns;
 
 /**
  * Created by thangnc on 4/14/17.
@@ -55,8 +51,7 @@ public abstract class MailChimpAbstractRecordBuffer
     private int requestCount;
     private long totalCount;
     private List<JsonNode> records;
-    private Map<String, InterestResponse> categories;
-    private boolean useMemberStatusColumn;
+    private Map<String, Map<String, InterestResponse>> categories;
 
     /**
      * Instantiates a new Mail chimp abstract record buffer.
@@ -73,7 +68,6 @@ public abstract class MailChimpAbstractRecordBuffer
                 .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
         this.records = new ArrayList<>();
         this.categories = new HashMap<>();
-        this.useMemberStatusColumn = checkExistColumns(schema, "status");
     }
 
     @Override
@@ -152,50 +146,19 @@ public abstract class MailChimpAbstractRecordBuffer
     {
         LOG.info("Start to process subscriber data");
         extractDataCenterBasedOnAuthMethod();
-        validateInterestCategories();
-        validateMemberStatus(data);
+        extractInterestCategories();
 
-        ArrayNode arrayOfEmailSubscribers = JsonNodeFactory.instance.arrayNode();
-        for (JsonNode contactData : data) {
-            ObjectNode property = JsonNodeFactory.instance.objectNode();
-            property.put("email_address", contactData.findPath("email").asText());
+        // Required merge fields
+        Map<String, String> map = new HashMap<>();
+        map.put("FNAME", task.getFnameColumn());
+        map.put("LNAME", task.getLnameColumn());
 
-            // Enable use pre-defined status
-            if (useMemberStatusColumn) {
-                property.put("status", contactData.findPath("status").asText());
-            }
-            else {
-                property.put("status", task.getDoubleOptIn() ? PENDING.getType() : SUBSCRIBED.getType());
-            }
-
-            ObjectNode mergeFields = JsonNodeFactory.instance.objectNode();
-            if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
-                for (final Column column : schema.getColumns()) {
-                    if (task.getMergeFields().get().contains(column.getName().toUpperCase())) {
-                        String value = contactData.findValue(column.getName()).asText();
-                        mergeFields.put(column.getName().toUpperCase(), value);
-                    }
-                }
-            }
-
-            ObjectNode interests = JsonNodeFactory.instance.objectNode();
-            if (task.getInterestCategories().isPresent() && !task.getInterestCategories().get().isEmpty()) {
-                for (final Column column : schema.getColumns()) {
-                    if (categories.keySet().contains(column.getName().toLowerCase())) {
-                        String value = contactData.findValue(column.getName()).asText();
-                        interests.put(categories.get(column.getName().toLowerCase()).getId(),
-                                      Boolean.valueOf(value).booleanValue());
-                    }
-                }
-            }
-
-            property.set("merge_fields", mergeFields);
-            property.set("interests", interests);
-            arrayOfEmailSubscribers.add(property);
-        }
+        List<JsonNode> subscribersList = FluentIterable.from(data)
+                .transform(contactMapper(map))
+                .toList();
 
         ObjectNode subscribers = JsonNodeFactory.instance.objectNode();
-        subscribers.putArray("members").addAll(arrayOfEmailSubscribers);
+        subscribers.putArray("members").addAll(subscribersList);
         subscribers.put("update_existing", task.getUpdateExisting());
         return subscribers;
     }
@@ -215,7 +178,7 @@ public abstract class MailChimpAbstractRecordBuffer
      *
      * @return the categories
      */
-    public Map<String, InterestResponse> getCategories()
+    public Map<String, Map<String, InterestResponse>> getCategories()
     {
         return categories;
     }
@@ -250,7 +213,7 @@ public abstract class MailChimpAbstractRecordBuffer
      * @return the map
      * @throws JsonProcessingException the json processing exception
      */
-    abstract Map<String, InterestResponse> fetchInterestCategoriesByGroupNames(final MailChimpOutputPluginDelegate.PluginTask task)
+    abstract Map<String, Map<String, InterestResponse>> extractInterestCategoriesByGroupNames(final MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException;
 
     /**
@@ -275,30 +238,74 @@ public abstract class MailChimpAbstractRecordBuffer
         }
     }
 
-    private void validateInterestCategories()
+    private void extractInterestCategories()
     {
         try {
             // Should loop the names and get the id of interest categories.
             // The reason why we put categories validation here because we can not share data between instance.
-            categories = fetchInterestCategoriesByGroupNames(task);
-            if (task.getInterestCategories().isPresent()
-                    && categories.size() != task.getInterestCategories().get().size()) {
-                throw new ConfigException("Invalid interest category names");
-            }
+            categories = extractInterestCategoriesByGroupNames(task);
         }
         catch (JsonProcessingException jpe) {
             throw new DataException(jpe);
         }
     }
 
-    private void validateMemberStatus(final List<JsonNode> data)
+    private Function<JsonNode, JsonNode> contactMapper(final Map<String, String> allowColumns)
     {
-        if (useMemberStatusColumn) {
-            // Validate member status before go to push data
-            Multimap<String, JsonNode> memberStatus = MailChimpHelper.extractMemberStatus(data);
-            for (String status : memberStatus.keySet()) {
-                MemberStatus.findByType(status);
+        return new Function<JsonNode, JsonNode>()
+        {
+            @Override
+            public JsonNode apply(JsonNode input)
+            {
+                ObjectNode property = JsonNodeFactory.instance.objectNode();
+                property.put("email_address", input.findPath(task.getEmailColumn()).asText());
+                property.put("status", task.getDoubleOptIn() ? PENDING.getType() : SUBSCRIBED.getType());
+                ObjectNode mergeFields = JsonNodeFactory.instance.objectNode();
+                for (String allowColumn : allowColumns.keySet()) {
+                    String value = input.findValue(allowColumns.get(allowColumn)).asText();
+                    mergeFields.put(allowColumn, value);
+                }
+
+                // Update additional merge fields if exist
+                if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
+                    for (final Column column : schema.getColumns()) {
+                        if (task.getMergeFields().get().contains(column.getName())) {
+                            String value = input.findValue(column.getName()).asText();
+                            mergeFields.put(column.getName().toUpperCase(), value);
+                        }
+                    }
+                }
+
+                property.set("merge_fields", mergeFields);
+
+                // Update interest categories if exist
+                if (task.getInterestCategories().isPresent() && !task.getInterestCategories().get().isEmpty()) {
+                    ObjectNode interests = JsonNodeFactory.instance.objectNode();
+
+                    for (String category : task.getInterestCategories().get()) {
+                        String value = input.findValue(category).asText();
+                        Map<String, InterestResponse> availableCategories = categories.get(category);
+
+                        if (!task.getReplaceInterests() && availableCategories.get(value) != null) {
+                            interests.put(availableCategories.get(value).getId(), true);
+                        }
+                        else if (task.getReplaceInterests()) {
+                            for (String availableCategory : availableCategories.keySet()) {
+                                if (availableCategory.equals(value)) {
+                                    interests.put(availableCategories.get(availableCategory).getId(), true);
+                                }
+                                else {
+                                    interests.put(availableCategories.get(availableCategory).getId(), false);
+                                }
+                            }
+                        }
+                    }
+
+                    property.set("interests", interests);
+                }
+
+                return property;
             }
-        }
+        };
     }
 }
