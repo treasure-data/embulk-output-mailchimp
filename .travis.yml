@@ -1,8 +1,5 @@
-language: jruby
-before_install:
-    - rvm get head --auto-dotfiles
-    - rvm install jruby-9.0.1.0
-    - gem install bundler --version 1.10.6
-    - bundle install
+language: java
+jdk:
+  - openjdk7
 script:
-  - bundle exec rake cov
+  - ./gradlew clean checkstyle check jacocoTestReport

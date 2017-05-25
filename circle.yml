@@ -1,0 +1,16 @@
+machine:
+  java:
+    version: openjdk7
+  environment:
+    TERM: "dumb"
+    EMBULK_OUTPUT_MAILCHIMP_TEST_CONFIG: "${HOME}/${TRAVIS_BUILD_DIR}/ci/travis_mailchimp.yml"
+
+test:
+  override:
+    - ./gradlew clean checkstyle check jacocoTestReport
+  post:
+    - cp -R build/reports/* $CIRCLE_ARTIFACTS
+
+notify:
+  webhooks:
+    - url: https://td-beda.herokuapp.com/circleci_callback

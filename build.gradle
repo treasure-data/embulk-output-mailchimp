@@ -1,0 +1,124 @@
+plugins {
+    id "com.jfrog.bintray" version "1.7.3"
+    id "com.github.jruby-gradle.base" version "0.1.5"
+    id "java"
+    id "checkstyle"
+    id "jacoco"
+}
+import com.github.jrubygradle.JRubyExec
+repositories {
+    mavenCentral()
+    jcenter()
+    // TODO(dmikurube): Remove this after embulk-base-restclient goes to jcenter.
+    maven {
+        url "https://dl.bintray.com/embulk-base-restclient/maven"
+    }
+}
+configurations {
+    provided
+}
+
+version = "0.3.0.1"
+
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+
+dependencies {
+    compile  "org.embulk:embulk-core:0.8.15"
+    provided "org.embulk:embulk-core:0.8.15"
+    compile  "org.embulk.base.restclient:embulk-base-restclient:0.5.0"
+    compile  "org.embulk.base.restclient:embulk-util-retryhelper-jetty92:0.5.0"
+    // compile "YOUR_JAR_DEPENDENCY_GROUP:YOUR_JAR_DEPENDENCY_MODULE:YOUR_JAR_DEPENDENCY_VERSION"
+
+    testCompile "junit:junit:4.+"
+    testCompile "org.embulk:embulk-core:0.8.15:tests"
+    testCompile "org.embulk:embulk-test:0.8.15"
+    testCompile "org.embulk:embulk-standards:0.8.15"
+    testCompile "org.mockito:mockito-core:2.+"
+}
+
+test {
+    jvmArgs "-XX:MaxPermSize=128M"
+    // Set the timezone for testing somewhere other than my machine to increase the chances of catching timezone bugs
+    systemProperty 'user.timezone', 'PST'
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+task classpath(type: Copy, dependsOn: ["jar"]) {
+    doFirst { file("classpath").deleteDir() }
+    from (configurations.runtime - configurations.provided + files(jar.archivePath))
+    into "classpath"
+}
+clean { delete "classpath" }
+
+checkstyle {
+    configFile = file("${project.rootDir}/config/checkstyle/checkstyle.xml")
+    toolVersion = '6.14.1'
+}
+checkstyleMain {
+    configFile = file("${project.rootDir}/config/checkstyle/default.xml")
+    ignoreFailures = true
+}
+checkstyleTest {
+    configFile = file("${project.rootDir}/config/checkstyle/default.xml")
+    ignoreFailures = true
+}
+task checkstyle(type: Checkstyle) {
+    classpath = sourceSets.main.output + sourceSets.test.output
+    source = sourceSets.main.allJava + sourceSets.test.allJava
+}
+
+task gem(type: JRubyExec, dependsOn: ["gemspec", "classpath"]) {
+    jrubyArgs "-rrubygems/gem_runner", "-eGem::GemRunner.new.run(ARGV)", "build"
+    script "${project.name}.gemspec"
+    doLast { ant.move(file: "${project.name}-${project.version}.gem", todir: "pkg") }
+}
+
+task gemPush(type: JRubyExec, dependsOn: ["gem"]) {
+    jrubyArgs "-rrubygems/gem_runner", "-eGem::GemRunner.new.run(ARGV)", "push"
+    script "pkg/${project.name}-${project.version}.gem"
+}
+
+task "package"(dependsOn: ["gemspec", "classpath"]) << {
+    println "> Build succeeded."
+    println "> You can run embulk with '-L ${file(".").absolutePath}' argument."
+}
+
+jacocoTestReport {
+    group = "Reporting"
+    reports {
+        xml.enabled false
+        csv.enabled false
+        html.destination "${buildDir}/reports/coverage"
+    }
+}
+
+task gemspec {
+    ext.gemspecFile = file("${project.name}.gemspec")
+    inputs.file "build.gradle"
+    outputs.file gemspecFile
+    doLast { gemspecFile.write($/
+Gem::Specification.new do |spec|
+  spec.name          = "${project.name}"
+  spec.version       = "${project.version}"
+  spec.authors       = "Thang Nguyen"
+  spec.summary       = %[Mailchimp output plugin for Embulk]
+  spec.description   = %[Dumps records to MailChimp.]
+  spec.email         = ["thang@treasure-data.com"]
+  spec.licenses      = ["Apache-2.0"]
+  spec.homepage      = "https://github.com/treasure-data/embulk-output-mailchimp"
+
+  spec.files         = `git ls-files`.split("\n") + Dir["classpath/*.jar"]
+  spec.test_files    = spec.files.grep(%r"^(test|spec)/")
+  spec.require_paths = ["lib"]
+
+  #spec.add_dependency 'YOUR_GEM_DEPENDENCY', ['~> YOUR_GEM_DEPENDENCY_VERSION']
+  spec.add_development_dependency 'bundler', ['~> 1.0']
+  spec.add_development_dependency 'rake', ['>= 10.0']
+end
+/$)
+    }
+}
+clean { delete "${project.name}.gemspec" }
