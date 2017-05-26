@@ -280,32 +280,40 @@ public abstract class MailChimpAbstractRecordBuffer
 
                 // Update interest categories if exist
                 if (task.getInterestCategories().isPresent() && !task.getInterestCategories().get().isEmpty()) {
-                    ObjectNode interests = JsonNodeFactory.instance.objectNode();
-
-                    for (String category : task.getInterestCategories().get()) {
-                        String value = input.findValue(category).asText();
-                        Map<String, InterestResponse> availableCategories = categories.get(category);
-
-                        if (!task.getReplaceInterests() && availableCategories.get(value) != null) {
-                            interests.put(availableCategories.get(value).getId(), true);
-                        }
-                        else if (task.getReplaceInterests()) {
-                            for (String availableCategory : availableCategories.keySet()) {
-                                if (availableCategory.equals(value)) {
-                                    interests.put(availableCategories.get(availableCategory).getId(), true);
-                                }
-                                else {
-                                    interests.put(availableCategories.get(availableCategory).getId(), false);
-                                }
-                            }
-                        }
-                    }
-
-                    property.set("interests", interests);
+                    property.set("interests", buildInterestCategories(task, input));
                 }
 
                 return property;
             }
         };
+    }
+
+    private ObjectNode buildInterestCategories(final MailChimpOutputPluginDelegate.PluginTask task,
+                                               final JsonNode input)
+    {
+        ObjectNode interests = JsonNodeFactory.instance.objectNode();
+
+        for (String category : task.getInterestCategories().get()) {
+            String value = input.findValue(category).asText();
+            Map<String, InterestResponse> availableCategories = categories.get(category);
+
+            // Only update user-predefined categories if replace interests != true
+            // Otherwise, force update all categories include user-predefined categories
+            if (!task.getReplaceInterests() && availableCategories.get(value) != null) {
+                interests.put(availableCategories.get(value).getId(), true);
+            }
+            else if (task.getReplaceInterests()) {
+                for (String availableCategory : availableCategories.keySet()) {
+                    if (availableCategory.equals(value)) {
+                        interests.put(availableCategories.get(availableCategory).getId(), true);
+                    }
+                    else {
+                        interests.put(availableCategories.get(availableCategory).getId(), false);
+                    }
+                }
+            }
+        }
+
+        return interests;
     }
 }
