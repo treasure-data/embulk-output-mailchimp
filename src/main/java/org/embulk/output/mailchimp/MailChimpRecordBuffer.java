@@ -8,6 +8,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
 import org.eclipse.jetty.http.HttpMethod;
+import org.embulk.config.ConfigException;
 import org.embulk.output.mailchimp.helper.MailChimpHelper;
 import org.embulk.output.mailchimp.model.CategoriesResponse;
 import org.embulk.output.mailchimp.model.ErrorResponse;
@@ -26,6 +27,9 @@ import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.embulk.output.mailchimp.model.AuthMethod.API_KEY;
+import static org.embulk.output.mailchimp.model.AuthMethod.OAUTH;
 
 /**
  * Created by thangnc on 4/25/17.
@@ -59,7 +63,7 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
     public ReportResponse push(final ObjectNode node, MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException
     {
-        String endpoint = MessageFormat.format(mailchimpEndpoint + "/3.0/lists/{0}",
+        String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}",
                                                task.getListId());
 
         JsonNode response = client.sendRequest(endpoint, HttpMethod.POST, node.toString(), task);
@@ -89,14 +93,14 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
         if (task.getInterestCategories().isPresent() && !task.getInterestCategories().get().isEmpty()) {
             List<String> interestCategoryNames = task.getInterestCategories().get();
 
-            String endpoint = MessageFormat.format(mailchimpEndpoint + "/3.0/lists/{0}/interest-categories",
+            String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/interest-categories",
                                                    task.getListId());
 
             JsonNode response = client.sendRequest(endpoint, HttpMethod.GET, task);
             InterestCategoriesResponse interestCategoriesResponse = getMapper().treeToValue(response,
                                                                                             InterestCategoriesResponse.class);
             for (CategoriesResponse categoriesResponse : interestCategoriesResponse.getCategories()) {
-                String detailEndpoint = MessageFormat.format(mailchimpEndpoint + "/3.0/lists/{0}/interest-categories/{1}/interests",
+                String detailEndpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/interest-categories/{1}/interests",
                                                              task.getListId(),
                                                              categoriesResponse.getId());
                 response = client.sendRequest(detailEndpoint, HttpMethod.GET, task);
@@ -111,9 +115,22 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
     @Override
     String extractDataCenter(MailChimpOutputPluginDelegate.PluginTask task) throws JsonProcessingException
     {
-        JsonNode response = client.sendRequest("https://login.mailchimp.com/oauth2/metadata", HttpMethod.GET, task);
-        MetaDataResponse metaDataResponse = getMapper().treeToValue(response, MetaDataResponse.class);
-        return metaDataResponse.getDc();
+        if (task.getAuthMethod() == OAUTH) {
+            // Extract data center from meta data URL
+            JsonNode response = client.sendRequest("https://login.mailchimp.com/oauth2/metadata", HttpMethod.GET, task);
+            MetaDataResponse metaDataResponse = getMapper().treeToValue(response, MetaDataResponse.class);
+            return metaDataResponse.getDc();
+        }
+        else if (task.getAuthMethod() == API_KEY && task.getApikey().isPresent()) {
+            // Authenticate and return data center
+            String domain = task.getApikey().get().split("-")[1];
+            String endpoint = MessageFormat.format(mailchimpEndpoint + "/", domain);
+            client.sendRequest(endpoint, HttpMethod.GET, task);
+            return domain;
+        }
+        else {
+            throw new ConfigException("Could not get data center");
+        }
     }
 
     private Map<String, InterestResponse> convertInterestCategoryToMap(final List<String> interestCategoryNames,

@@ -17,7 +17,7 @@ public final class ColumnDataValidator
     }
 
     /**
-     * Check required columns. In contact target, should require `email` and `status` columns
+     * Check required columns. Should require `email` and `status` columns
      *
      * @param schema       the schema
      * @param allowColumns the columns

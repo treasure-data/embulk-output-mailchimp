@@ -54,7 +54,7 @@ public class MailChimpOutputPluginDelegate
         int getTimeoutMillis();
 
         @Config("auth_method")
-        @ConfigDefault("access_token")
+        @ConfigDefault("api_key")
         AuthMethod getAuthMethod();
 
         @Config("apikey")
@@ -75,6 +75,10 @@ public class MailChimpOutputPluginDelegate
         @Config("interest_categories")
         @ConfigDefault("null")
         Optional<List<String>> getInterestCategories();
+
+        @Config("double_optin")
+        @ConfigDefault("false")
+        boolean getDoubleOptIn();
 
         @Config("update_existing")
         @ConfigDefault("false")
@@ -107,8 +111,8 @@ public class MailChimpOutputPluginDelegate
             throw new ConfigException("'list_id' must not be null or empty string");
         }
 
-        if (!checkExistColumns(schema, "email", "status")) {
-            throw new ConfigException("Columns ['email', 'status'] must not be null or empty string");
+        if (!checkExistColumns(schema, "email")) {
+            throw new ConfigException("Columns ['email'] must not be null or empty string");
         }
     }
 
