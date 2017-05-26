@@ -68,6 +68,18 @@ public class MailChimpOutputPluginDelegate
         @Config("list_id")
         String getListId();
 
+        @Config("email_column")
+        @ConfigDefault("email")
+        String getEmailColumn();
+
+        @Config("fname_column")
+        @ConfigDefault("fname")
+        String getFnameColumn();
+
+        @Config("lname_column")
+        @ConfigDefault("lname")
+        String getLnameColumn();
+
         @Config("merge_fields")
         @ConfigDefault("null")
         Optional<List<String>> getMergeFields();
@@ -77,12 +89,16 @@ public class MailChimpOutputPluginDelegate
         Optional<List<String>> getInterestCategories();
 
         @Config("double_optin")
-        @ConfigDefault("false")
+        @ConfigDefault("true")
         boolean getDoubleOptIn();
 
         @Config("update_existing")
         @ConfigDefault("false")
         boolean getUpdateExisting();
+
+        @Config("replace_interests")
+        @ConfigDefault("true")
+        boolean getReplaceInterests();
     }
 
     /**
@@ -111,8 +127,8 @@ public class MailChimpOutputPluginDelegate
             throw new ConfigException("'list_id' must not be null or empty string");
         }
 
-        if (!checkExistColumns(schema, "email")) {
-            throw new ConfigException("Columns ['email'] must not be null or empty string");
+        if (!checkExistColumns(schema, task.getEmailColumn(), task.getFnameColumn(), task.getLnameColumn())) {
+            throw new ConfigException("Columns ['email', 'fname', 'lname'] must not be null or empty string");
         }
     }
 

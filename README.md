@@ -13,14 +13,17 @@ add e-mail to List in MailChimp.
 
 ## Configuration
 
-- **auth_method**: MailChimp auth method (string, `api_key` or `oauth`, default: `oauth`)
+- **auth_method**: MailChimp auth method (string, `api_key` or `oauth`, default: `api_key`)
 - **apikey**: MailChimp API key (string, required if `auth_method` is `api_key`)
 - **access_token**: MailChimp access token (string, required if `auth_method` is `oauth`)
 - **list_id**: MailChimp List id (string, required)
+- **email_column**: column name for email (string, default: 'email')
+- **fname_column**: column name for first name (string, default: 'fname')
+- **lname_column**: column name for last name(string, default: 'lname')
 - **update_existing**: control whether to update members that are already subscribed to the list or to return an error (boolean, default: false)
-- **merge_fields**: Array for merge fields/ TAG in MailChimp dashboard (array, optional, default: nil)
+- **merge_fields**: Array for additional merge fields/ TAG in MailChimp dashboard (array, optional, default: nil)
 - **interest_categories**: Array for group names in MailChimp dashboard(array, default: nil)
-- **double_optin**: Removed in API v3. Using `status` in json request body instead. Subscriber's current status: `subscribed`, `unsubscribed`, `cleaned`, `pending` 
+- **double_optin**: control whether to send an opt-in confirmation email (boolean, default: true)
 
 ## Example
 
@@ -31,13 +34,16 @@ out:
   apikey: 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-XXX'
   list_id: 'XXXXXXXXXX'
   update_existing: false
+  double_optin: false
+  email_column: e-mail
+  fname_column: first name
+  lname_column: lname
   merge_fields:
-  - FNAME
-  - LNAME
-  - WEB
+  - website
   interest_categories:
-  - Donating
-  - Events
+  - interests
+  - location
+  replace_interests: true
 ```
 
 ## Build

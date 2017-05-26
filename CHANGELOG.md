@@ -1,3 +1,6 @@
+## 0.3.0.4 - 2016-15-24
+- Fixed compatible with API v2 and changed data format [#16](https://github.com/treasure-data/embulk-output-mailchimp/pull/16)
+
 ## 0.3.0.3 - 2016-05-18
 - Fixed bug can not extract data center when use `api_key` as `auth_mode` [#15](https://github.com/treasure-data/embulk-output-mailchimp/pull/15)
 

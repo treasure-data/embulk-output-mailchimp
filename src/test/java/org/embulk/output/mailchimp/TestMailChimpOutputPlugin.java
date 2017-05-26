@@ -104,9 +104,8 @@ public class TestMailChimpOutputPlugin
     {
         ConfigSource config = baseConfig;
         Schema schema = Schema.builder()
-                .add("firstname", STRING)
-                .add("lastname", STRING)
-                .add("status", STRING)
+                .add("fname", STRING)
+                .add("lname", STRING)
                 .build();
 
         final TransactionalPageOutput output = plugin.open(task.dump(), schema, 0);
@@ -149,7 +148,6 @@ public class TestMailChimpOutputPlugin
                 .add("email", STRING)
                 .add("fname", STRING)
                 .add("lname", STRING)
-                .add("status", STRING)
                 .build();
 
         final TransactionalPageOutput output = plugin.open(task.dump(), schema, 0);
