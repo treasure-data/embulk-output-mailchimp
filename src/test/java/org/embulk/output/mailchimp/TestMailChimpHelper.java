@@ -7,7 +7,6 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
@@ -33,7 +32,7 @@ public class TestMailChimpHelper
     {
         String expect = "United State";
         assertEquals("Interest category should match", expect, containsCaseInsensitive("united state",
-                                                                                       new HashSet<>(Arrays.asList("Donating", "United State"))));
+                                                                                       Arrays.asList("Donating", "United State")));
     }
 
     @Test

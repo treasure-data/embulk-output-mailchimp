@@ -8,7 +8,6 @@ import com.google.common.collect.Multimaps;
 import javax.annotation.Nullable;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  * Created by thangnc on 4/26/17.
@@ -37,7 +36,7 @@ public final class MailChimpHelper
      * @param list the list
      * @return the boolean
      */
-    public static String containsCaseInsensitive(final String s, final Set<String> list)
+    public static String containsCaseInsensitive(final String s, final List<String> list)
     {
         for (String string : list) {
             if (string.equalsIgnoreCase(s)) {

@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
 import static org.embulk.output.mailchimp.model.MemberStatus.PENDING;
 import static org.embulk.output.mailchimp.model.MemberStatus.SUBSCRIBED;
 
@@ -269,7 +270,7 @@ public abstract class MailChimpAbstractRecordBuffer
                 // Update additional merge fields if exist
                 if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
                     for (final Column column : schema.getColumns()) {
-                        if (task.getMergeFields().get().contains(column.getName())) {
+                        if (!"".equals(containsCaseInsensitive(column.getName(), task.getMergeFields().get()))) {
                             String value = input.findValue(column.getName()).asText();
                             mergeFields.put(column.getName().toUpperCase(), value);
                         }
