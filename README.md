@@ -35,9 +35,9 @@ out:
   list_id: 'XXXXXXXXXX'
   update_existing: false
   double_optin: false
-  email_column: e mail
+  email_column: e-mail
   fname_column: first name
-  lname_column: last name
+  lname_column: lname
   merge_fields:
   - website
   interest_categories:
