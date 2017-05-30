@@ -90,8 +90,8 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
             throws JsonProcessingException
     {
         Map<String, Map<String, InterestResponse>> categories = new HashMap<>();
-        if (task.getInterestCategories().isPresent() && !task.getInterestCategories().get().isEmpty()) {
-            List<String> interestCategoryNames = task.getInterestCategories().get();
+        if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
+            List<String> interestCategoryNames = task.getGroupingColumns().get();
 
             String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/interest-categories",
                                                    task.getListId());

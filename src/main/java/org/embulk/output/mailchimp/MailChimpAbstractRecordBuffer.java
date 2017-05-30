@@ -280,7 +280,7 @@ public abstract class MailChimpAbstractRecordBuffer
                 property.set("merge_fields", mergeFields);
 
                 // Update interest categories if exist
-                if (task.getInterestCategories().isPresent() && !task.getInterestCategories().get().isEmpty()) {
+                if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
                     property.set("interests", buildInterestCategories(task, input));
                 }
 
@@ -294,7 +294,7 @@ public abstract class MailChimpAbstractRecordBuffer
     {
         ObjectNode interests = JsonNodeFactory.instance.objectNode();
 
-        for (String category : task.getInterestCategories().get()) {
+        for (String category : task.getGroupingColumns().get()) {
             String value = input.findValue(category).asText();
             Map<String, InterestResponse> availableCategories = categories.get(category);
 
