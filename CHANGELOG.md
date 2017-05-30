@@ -1,4 +1,7 @@
-## 0.3.1 - 2017
+## 0.3.2 - 2017-05-30
+- Rename `interest_categories` to `grouping_columns` to fix backward compatibility
+
+## 0.3.1 - 2017-05-26
 - Enable merge fields with case-insensitive [#17](https://github.com/treasure-data/embulk-output-mailchimp/pull/17)
 
 ## 0.3.0.4 - 2017-05-24
