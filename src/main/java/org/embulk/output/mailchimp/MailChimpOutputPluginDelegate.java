@@ -84,9 +84,9 @@ public class MailChimpOutputPluginDelegate
         @ConfigDefault("null")
         Optional<List<String>> getMergeFields();
 
-        @Config("interest_categories")
+        @Config("grouping_columns")
         @ConfigDefault("null")
-        Optional<List<String>> getInterestCategories();
+        Optional<List<String>> getGroupingColumns();
 
         @Config("double_optin")
         @ConfigDefault("true")

@@ -22,7 +22,7 @@ add e-mail to List in MailChimp.
 - **lname_column**: column name for last name(string, default: 'lname')
 - **update_existing**: control whether to update members that are already subscribed to the list or to return an error (boolean, default: false)
 - **merge_fields**: Array for additional merge fields/ TAG in MailChimp dashboard (array, optional, default: nil)
-- **interest_categories**: Array for group names in MailChimp dashboard(array, default: nil)
+- **grouping_columns**: Array for group names in MailChimp dashboard(array, default: nil)
 - **double_optin**: control whether to send an opt-in confirmation email (boolean, default: true)
 
 ## Example
@@ -40,7 +40,7 @@ out:
   lname_column: lname
   merge_fields:
   - website
-  interest_categories:
+  grouping_columns:
   - interests
   - location
   replace_interests: true
