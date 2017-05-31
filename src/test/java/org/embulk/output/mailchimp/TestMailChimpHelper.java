@@ -3,6 +3,7 @@ package org.embulk.output.mailchimp;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.collect.Multimap;
+import org.embulk.output.mailchimp.helper.MailChimpHelper;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import java.util.List;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.extractMemberStatus;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.maskEmail;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -50,5 +52,15 @@ public class TestMailChimpHelper
         assertEquals("Status should contain keys", true, statusMap.containsKey("pending"));
         assertEquals("Status should contain keys", true, statusMap.containsKey("subcribed"));
         assertEquals("Status should contain keys", true, statusMap.containsKey("abc"));
+    }
+
+    @Test
+    public void test_fromCommaSeparatedString()
+    {
+        String[] expect = new String[]{"Donating", "United State"};
+        List separatedString = MailChimpHelper.fromCommaSeparatedString("Donating,United State");
+
+        assertEquals("Length should match", expect.length, separatedString.size());
+        assertArrayEquals("Should match", expect, separatedString.toArray());
     }
 }

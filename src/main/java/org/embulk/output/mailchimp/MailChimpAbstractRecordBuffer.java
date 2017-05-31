@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.fromCommaSeparatedString;
 import static org.embulk.output.mailchimp.model.MemberStatus.PENDING;
 import static org.embulk.output.mailchimp.model.MemberStatus.SUBSCRIBED;
 
@@ -295,17 +296,21 @@ public abstract class MailChimpAbstractRecordBuffer
         ObjectNode interests = JsonNodeFactory.instance.objectNode();
 
         for (String category : task.getGroupingColumns().get()) {
-            String value = input.findValue(category).asText();
+            String inputValue = input.findValue(category).asText();
+            List<String> interestValues = fromCommaSeparatedString(inputValue);
             Map<String, InterestResponse> availableCategories = categories.get(category);
 
             // Only update user-predefined categories if replace interests != true
-            // Otherwise, force update all categories include user-predefined categories
-            if (!task.getReplaceInterests() && availableCategories.get(value) != null) {
-                interests.put(availableCategories.get(value).getId(), true);
-            }
+            if (!task.getReplaceInterests()) {
+                for (String interestValue : interestValues) {
+                    if (availableCategories.get(interestValue) != null) {
+                        interests.put(availableCategories.get(interestValue).getId(), true);
+                    }
+                }
+            } // Otherwise, force update all categories include user-predefined categories
             else if (task.getReplaceInterests()) {
                 for (String availableCategory : availableCategories.keySet()) {
-                    if (availableCategory.equals(value)) {
+                    if (interestValues.contains(availableCategory)) {
                         interests.put(availableCategories.get(availableCategory).getId(), true);
                     }
                     else {
