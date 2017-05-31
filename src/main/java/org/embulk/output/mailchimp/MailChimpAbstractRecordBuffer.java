@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
 import org.embulk.base.restclient.jackson.JacksonServiceRecord;
 import org.embulk.base.restclient.record.RecordBuffer;
 import org.embulk.base.restclient.record.ServiceRecord;
