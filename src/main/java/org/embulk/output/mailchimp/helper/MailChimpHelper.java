@@ -2,6 +2,8 @@ package org.embulk.output.mailchimp.helper;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Function;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 
@@ -66,5 +68,17 @@ public final class MailChimpHelper
         };
 
         return Multimaps.index(data, function);
+    }
+
+    /**
+     * From comma separated string list.
+     *
+     * @param string the string
+     * @return the list
+     */
+    public static List<String> fromCommaSeparatedString(String string)
+    {
+        Iterable<String> split = Splitter.on(",").omitEmptyStrings().trimResults().split(string);
+        return Lists.newArrayList(split);
     }
 }
