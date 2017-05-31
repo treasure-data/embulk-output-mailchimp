@@ -18,7 +18,7 @@ configurations {
     provided
 }
 
-version = "0.3.2"
+version = "0.3.3"
 
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
@@ -107,7 +107,7 @@ Gem::Specification.new do |spec|
   spec.summary       = %[Mailchimp output plugin for Embulk]
   spec.description   = %[Dumps records to MailChimp.]
   spec.email         = ["thang@treasure-data.com"]
-  spec.licenses      = ["Apache-2.0"]
+  spec.licenses      = ["MIT"]
   spec.homepage      = "https://github.com/treasure-data/embulk-output-mailchimp"
 
   spec.files         = `git ls-files`.split("\n") + Dir["classpath/*.jar"]

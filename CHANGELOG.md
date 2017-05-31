@@ -1,3 +1,6 @@
+## 0.3.3 - 2017-05-31
+- Enable multiple values for `interest categories` [#19](https://github.com/treasure-data/embulk-output-mailchimp/pull/19)
+
 ## 0.3.2 - 2017-05-30
 - Rename `interest_categories` to `grouping_columns` to fix backward compatibility [#18](https://github.com/treasure-data/embulk-output-mailchimp/pull/18)
 
