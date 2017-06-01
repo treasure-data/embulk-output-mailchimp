@@ -34,6 +34,7 @@ import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseIns
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.fromCommaSeparatedString;
 import static org.embulk.output.mailchimp.model.MemberStatus.PENDING;
 import static org.embulk.output.mailchimp.model.MemberStatus.SUBSCRIBED;
+import static org.embulk.spi.type.Types.JSON;
 
 /**
  * Created by thangnc on 4/14/17.
@@ -272,8 +273,13 @@ public abstract class MailChimpAbstractRecordBuffer
                 if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
                     for (final Column column : schema.getColumns()) {
                         if (!"".equals(containsCaseInsensitive(column.getName(), task.getMergeFields().get()))) {
-                            String value = input.findValue(column.getName()).asText();
-                            mergeFields.put(column.getName().toUpperCase(), value);
+                            if (column.getType().equals(JSON)) {
+                                mergeFields.set(column.getName().toUpperCase(), input.findValue(column.getName()));
+                            }
+                            else {
+                                String value = input.findValue(column.getName()).asText();
+                                mergeFields.put(column.getName().toUpperCase(), value);
+                            }
                         }
                     }
                 }
