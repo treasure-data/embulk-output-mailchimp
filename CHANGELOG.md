@@ -1,3 +1,6 @@
+## 0.3.4 - 2017-06-01
+- Enable JSON type for `address` MERGE field [#20](https://github.com/treasure-data/embulk-output-mailchimp/pull/20)
+
 ## 0.3.3 - 2017-05-31
 - Enable multiple values for `interest categories` [#19](https://github.com/treasure-data/embulk-output-mailchimp/pull/19)
 
