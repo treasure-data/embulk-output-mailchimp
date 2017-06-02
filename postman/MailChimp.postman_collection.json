@@ -1,0 +1,232 @@
+{
+	"id": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf",
+	"name": "MailChimp",
+	"description": "",
+	"order": [
+		"7bc1ae79-68e8-15ef-e15c-01bd26b4bf2f",
+		"22201306-c901-342f-0472-b30a433dd029",
+		"86f1ab62-2fad-acde-02e5-5ddd14eecdb6"
+	],
+	"folders": [
+		{
+			"id": "74a85779-d021-499c-12b3-654f598b4a2e",
+			"name": "Interest categories",
+			"description": "",
+			"order": [
+				"e520f56b-8ebc-74c4-e5bf-495fc9ded397",
+				"879943de-8d6d-62d0-7dd1-a4287634290c"
+			],
+			"owner": "1392811"
+		},
+		{
+			"id": "8bd652d8-336d-6e74-93c5-dbc5cf74bffd",
+			"name": "Subscriber",
+			"description": "",
+			"order": [
+				"f4422b59-873f-f0bf-1a86-59c4beaf5dd9",
+				"0f8276e5-652a-13c8-2563-df9dc4c0ef00"
+			],
+			"owner": "1392811"
+		}
+	],
+	"timestamp": 1492411934810,
+	"owner": "1392811",
+	"public": false,
+	"requests": [
+		{
+			"id": "0f8276e5-652a-13c8-2563-df9dc4c0ef00",
+			"headers": "Authorization: OAuth {{access_token}}\nContent-Type: application/json\n",
+			"url": "https://us15.api.mailchimp.com/3.0/lists/{{list_id}}/members/{{member_hash}}",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "PATCH",
+			"data": [],
+			"dataMode": "raw",
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1492416156993,
+			"name": "Update an address",
+			"description": "Use a PATCH request to the address’s endpoint to update an address’s metadata. The body can be a JSON object with only the data you want to change.",
+			"collectionId": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf",
+			"responses": [],
+			"folder": "8bd652d8-336d-6e74-93c5-dbc5cf74bffd",
+			"rawModeData": "{\n    \"status\": \"cleaned\"\n}"
+		},
+		{
+			"id": "22201306-c901-342f-0472-b30a433dd029",
+			"headers": "",
+			"url": "https://login.mailchimp.com/oauth/authorize?client_id={{client_id}}&redirect_uri={{redirect_uri}}&response_type=code",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "GET",
+			"data": null,
+			"dataMode": "params",
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1492414448327,
+			"name": "Initiating an OAuth connection",
+			"description": "In order to initiate OAuth access for your MailChimp App, you'll first need to send a MailChimp user to an authorization page, where that user will need to grant access to your app.",
+			"collectionId": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf"
+		},
+		{
+			"id": "7bc1ae79-68e8-15ef-e15c-01bd26b4bf2f",
+			"headers": "Content-Type: application/x-www-form-urlencoded\n//charset: utf-8\n",
+			"url": "https://login.mailchimp.com/oauth2/token",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "POST",
+			"data": [
+				{
+					"key": "grant_type",
+					"value": "authorization_code",
+					"type": "text",
+					"enabled": true
+				},
+				{
+					"key": "client_id",
+					"value": "{{client_id}}",
+					"type": "text",
+					"enabled": true
+				},
+				{
+					"key": "client_secret",
+					"value": "{{client_secret}}",
+					"type": "text",
+					"enabled": true
+				},
+				{
+					"key": "redirect_uri",
+					"value": "{{redirect_uri}}",
+					"type": "text",
+					"enabled": true
+				},
+				{
+					"key": "code",
+					"value": "{{authorization_code}}",
+					"type": "text",
+					"enabled": true
+				}
+			],
+			"dataMode": "urlencoded",
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1492415725800,
+			"name": "Get Access Token and Refresh Tokens",
+			"description": "Use the code you get after a user authorizes your app to get an access token and refresh token.  The access token will be used to authenticate requests that your app makes. ",
+			"collectionId": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf"
+		},
+		{
+			"id": "86f1ab62-2fad-acde-02e5-5ddd14eecdb6",
+			"headers": "Content-Type: application/x-www-form-urlencoded\ncharset: utf-8\nAuthorization: OAuth {{access_token}}\n",
+			"url": "https://login.mailchimp.com/oauth2/metadata",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "GET",
+			"data": [
+				{
+					"key": "grant_type",
+					"value": "refresh_token",
+					"type": "text",
+					"enabled": true
+				},
+				{
+					"key": "client_id",
+					"value": "{{client_id}}",
+					"type": "text",
+					"enabled": true
+				},
+				{
+					"key": "client_secret",
+					"value": "{{client_secret}}",
+					"type": "text",
+					"enabled": true
+				},
+				{
+					"key": "redirect_uri",
+					"value": "{{redirect_uri}}",
+					"type": "text",
+					"enabled": true
+				},
+				{
+					"key": "refresh_token",
+					"value": "{{refresh_token}}",
+					"type": "text",
+					"enabled": true
+				}
+			],
+			"dataMode": "urlencoded",
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1492415722146,
+			"name": "Get metadata",
+			"description": "Use a previously obtained refresh token to generate a new access token.  Access tokens expire after 6 hours, so if you need offline access to data in HubSpot, you'll need to store the refresh token you get when initiating your OAuth integration, and use that to generate a new access token once the initial access token expires.",
+			"collectionId": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf"
+		},
+		{
+			"id": "879943de-8d6d-62d0-7dd1-a4287634290c",
+			"headers": "Authorization: OAuth {{access_token}}\nContent-Type: application/json\n",
+			"url": "https://us15.api.mailchimp.com/3.0/lists/{{list_id}}/interest-categories/aef91b012c/interests",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "GET",
+			"data": [],
+			"dataMode": "raw",
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1492785528032,
+			"name": "Get interest category",
+			"description": "Get all interests in a specific category",
+			"collectionId": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf",
+			"responses": [],
+			"folder": "74a85779-d021-499c-12b3-654f598b4a2e",
+			"rawModeData": "{\n    \"email_address\": \"thang001@gmail.com\",\n    \"status\": \"subscribed\",\n    \"merge_fields\": {\n\t    \"FNAME\": \"Thang\",\n\t    \"LNAME\": \"Nguyen\",\n\t    \"WEB\": \"\"\n\t  },\n\t  \"interests\": {\n\t    \"b7652a86ca\": false,\n\t    \"2b6afc9b84\": false,\n\t    \"69631a4a0e\": false,\n\t    \"ca1b0d08c8\": false,\n\t    \"d788f4fe38\": false,\n\t    \"477a0855ca\": false\n\t  }\n}"
+		},
+		{
+			"id": "e520f56b-8ebc-74c4-e5bf-495fc9ded397",
+			"headers": "Authorization: OAuth {{access_token}}\nContent-Type: application/json\n",
+			"url": "https://us15.api.mailchimp.com/3.0/lists/{{list_id}}/interest-categories",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "GET",
+			"data": [],
+			"dataMode": "raw",
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1492785572454,
+			"name": "Get interest categories",
+			"description": "Get information about a list’s interest categories",
+			"collectionId": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf",
+			"responses": [],
+			"folder": "74a85779-d021-499c-12b3-654f598b4a2e",
+			"rawModeData": "{\n    \"email_address\": \"thang001@gmail.com\",\n    \"status\": \"subscribed\",\n    \"merge_fields\": {\n\t    \"FNAME\": \"Thang\",\n\t    \"LNAME\": \"Nguyen\",\n\t    \"WEB\": \"\"\n\t  },\n\t  \"interests\": {\n\t    \"b7652a86ca\": false,\n\t    \"2b6afc9b84\": false,\n\t    \"69631a4a0e\": false,\n\t    \"ca1b0d08c8\": false,\n\t    \"d788f4fe38\": false,\n\t    \"477a0855ca\": false\n\t  }\n}"
+		},
+		{
+			"id": "f4422b59-873f-f0bf-1a86-59c4beaf5dd9",
+			"headers": "Authorization: OAuth {{access_token}}\nContent-Type: application/json\n",
+			"url": "https://us15.api.mailchimp.com/3.0/lists/{{list_id}}/members/",
+			"preRequestScript": null,
+			"pathVariables": {},
+			"method": "POST",
+			"data": [],
+			"dataMode": "raw",
+			"tests": null,
+			"currentHelper": "normal",
+			"helperAttributes": {},
+			"time": 1492785248035,
+			"name": "Subscribe an Address",
+			"description": "Send a POST request to the List Members endpoint",
+			"collectionId": "e0aef9c3-eead-b884-1edf-9f50fc1f2ddf",
+			"responses": [],
+			"isFromCollection": true,
+			"collectionRequestId": "f4422b59-873f-f0bf-1a86-59c4beaf5dd9",
+			"folder": "8bd652d8-336d-6e74-93c5-dbc5cf74bffd",
+			"rawModeData": "{\n    \"email_address\": \"thang001@gmail.com\",\n    \"status\": \"subscribed\",\n    \"merge_fields\": {\n\t    \"FNAME\": \"Thang\",\n\t    \"LNAME\": \"Nguyen\",\n\t    \"WEB\": \"\"\n\t  },\n\t  \"interests\": {\n\t    \"b7652a86ca\": false,\n\t    \"2b6afc9b84\": false,\n\t    \"69631a4a0e\": false,\n\t    \"ca1b0d08c8\": false,\n\t    \"d788f4fe38\": false,\n\t    \"477a0855ca\": false\n\t  }\n}"
+		}
+	]
+}
