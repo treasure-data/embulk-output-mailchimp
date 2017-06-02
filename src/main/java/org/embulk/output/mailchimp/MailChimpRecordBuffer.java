@@ -63,6 +63,7 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
     public ReportResponse push(final ObjectNode node, MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException
     {
+        LOG.info(">>>>> Payload data <<<<< " + node.toString());
         String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}",
                                                task.getListId());
 
