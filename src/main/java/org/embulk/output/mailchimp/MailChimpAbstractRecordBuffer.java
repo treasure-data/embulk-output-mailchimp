@@ -260,6 +260,8 @@ public abstract class MailChimpAbstractRecordBuffer
             @Override
             public JsonNode apply(JsonNode input)
             {
+                LOG.info(">>>>> Row data <<<<< " + input.toString());
+
                 ObjectNode property = JsonNodeFactory.instance.objectNode();
                 property.put("email_address", input.findPath(task.getEmailColumn()).asText());
                 property.put("status", task.getDoubleOptIn() ? PENDING.getType() : SUBSCRIBED.getType());
@@ -272,6 +274,7 @@ public abstract class MailChimpAbstractRecordBuffer
                 // Update additional merge fields if exist
                 if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
                     for (final Column column : schema.getColumns()) {
+                        LOG.info(">>>>> Column name | Column type <<<<<, {} | {}", column.getName(), column.getType().getName());
                         if (!"".equals(containsCaseInsensitive(column.getName(), task.getMergeFields().get()))) {
                             if (column.getType().equals(JSON)) {
                                 mergeFields.set(column.getName().toUpperCase(), input.findValue(column.getName()));
