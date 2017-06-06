@@ -2,6 +2,8 @@ package org.embulk.output.mailchimp;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Multimap;
 import org.embulk.output.mailchimp.helper.MailChimpHelper;
 import org.junit.Test;
@@ -13,6 +15,7 @@ import java.util.List;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.extractMemberStatus;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.maskEmail;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.toJsonNode;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -62,5 +65,21 @@ public class TestMailChimpHelper
 
         assertEquals("Length should match", expect.length, separatedString.size());
         assertArrayEquals("Should match", expect, separatedString.toArray());
+    }
+
+    @Test
+    public void test_toJsonNode_validJsonString()
+    {
+        String given = "{\"addr1\":\"1234\",\"city\":\"mountain view\",\"country\":\"US\",\"state\":\"CA\",\"zip\":\"95869\"}";
+        String expect = "US";
+
+        assertEquals("Should be Json", ObjectNode.class, toJsonNode(given).getClass());
+        assertEquals("Should have attribute `country`", expect, toJsonNode(given).get("country").asText());
+    }
+
+    @Test
+    public void test_toJsonNode_invalidJSonString()
+    {
+        assertEquals("Should be NullNode", NullNode.class, toJsonNode("abc").getClass());
     }
 }
