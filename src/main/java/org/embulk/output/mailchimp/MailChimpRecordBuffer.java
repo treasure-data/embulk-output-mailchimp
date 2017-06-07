@@ -15,6 +15,8 @@ import org.embulk.output.mailchimp.model.ErrorResponse;
 import org.embulk.output.mailchimp.model.InterestCategoriesResponse;
 import org.embulk.output.mailchimp.model.InterestResponse;
 import org.embulk.output.mailchimp.model.InterestsResponse;
+import org.embulk.output.mailchimp.model.MergeField;
+import org.embulk.output.mailchimp.model.MergeFields;
 import org.embulk.output.mailchimp.model.MetaDataResponse;
 import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.Exec;
@@ -63,7 +65,6 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
     public ReportResponse push(final ObjectNode node, MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException
     {
-        LOG.info(">>>>> Payload data <<<<< " + node.toString());
         String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}",
                                                task.getListId());
 
@@ -157,6 +158,17 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
         }
     }
 
+    @Override
+    Map<String, MergeField> extractMergeFieldsFromList(MailChimpOutputPluginDelegate.PluginTask task) throws JsonProcessingException
+    {
+        String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/merge-fields",
+                                               task.getListId());
+        JsonNode response = client.sendRequest(endpoint, HttpMethod.GET, task);
+        MergeFields mergeFields = getMapper().treeToValue(response,
+                                                          MergeFields.class);
+        return convertMergeFieldToMap(mergeFields.getMergeFields());
+    }
+
     private Map<String, InterestResponse> convertInterestCategoryToMap(final List<InterestResponse> interestResponseList)
     {
         Function<InterestResponse, String> function = new Function<InterestResponse, String>()
@@ -169,6 +181,23 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
         };
 
         return Maps.uniqueIndex(FluentIterable.from(interestResponseList)
+                                        .toList(),
+                                function);
+    }
+
+    private Map<String, MergeField> convertMergeFieldToMap(final List<MergeField> mergeFieldList)
+    {
+        Function<MergeField, String> function = new Function<MergeField, String>()
+        {
+            @Nullable
+            @Override
+            public String apply(@Nullable MergeField input)
+            {
+                return input.getTag().toLowerCase();
+            }
+        };
+
+        return Maps.uniqueIndex(FluentIterable.from(mergeFieldList)
                                         .toList(),
                                 function);
     }

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
@@ -16,6 +17,7 @@ import org.embulk.base.restclient.record.ServiceRecord;
 import org.embulk.config.TaskReport;
 import org.embulk.output.mailchimp.model.ErrorResponse;
 import org.embulk.output.mailchimp.model.InterestResponse;
+import org.embulk.output.mailchimp.model.MergeField;
 import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.Column;
 import org.embulk.spi.DataException;
@@ -32,9 +34,9 @@ import java.util.Map;
 
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.fromCommaSeparatedString;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.toJsonNode;
 import static org.embulk.output.mailchimp.model.MemberStatus.PENDING;
 import static org.embulk.output.mailchimp.model.MemberStatus.SUBSCRIBED;
-import static org.embulk.spi.type.Types.JSON;
 
 /**
  * Created by thangnc on 4/14/17.
@@ -55,6 +57,7 @@ public abstract class MailChimpAbstractRecordBuffer
     private long totalCount;
     private List<JsonNode> records;
     private Map<String, Map<String, InterestResponse>> categories;
+    private Map<String, MergeField> availableMergeFields;
 
     /**
      * Instantiates a new Mail chimp abstract record buffer.
@@ -146,10 +149,19 @@ public abstract class MailChimpAbstractRecordBuffer
      * @return the object node
      */
     ObjectNode processSubcribers(final List<JsonNode> data, final MailChimpOutputPluginDelegate.PluginTask task)
+            throws JsonProcessingException
     {
         LOG.info("Start to process subscriber data");
-        extractDataCenterBasedOnAuthMethod();
-        extractInterestCategories();
+        // Extract data center from meta data URL
+        String dc = extractDataCenter(task);
+        mailchimpEndpoint = MessageFormat.format(mailchimpEndpoint, dc);
+
+        // Should loop the names and get the id of interest categories.
+        // The reason why we put categories validation here because we can not share data between instance.
+        categories = extractInterestCategoriesByGroupNames(task);
+
+        // Extract merge fields detail
+        availableMergeFields = extractMergeFieldsFromList(task);
 
         // Required merge fields
         Map<String, String> map = new HashMap<>();
@@ -229,29 +241,15 @@ public abstract class MailChimpAbstractRecordBuffer
     abstract String extractDataCenter(final MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException;
 
-    private void extractDataCenterBasedOnAuthMethod()
-    {
-        try {
-            // Extract data center from meta data URL
-            String dc = extractDataCenter(task);
-            mailchimpEndpoint = MessageFormat.format(mailchimpEndpoint, dc);
-        }
-        catch (JsonProcessingException jpe) {
-            throw new DataException(jpe);
-        }
-    }
-
-    private void extractInterestCategories()
-    {
-        try {
-            // Should loop the names and get the id of interest categories.
-            // The reason why we put categories validation here because we can not share data between instance.
-            categories = extractInterestCategoriesByGroupNames(task);
-        }
-        catch (JsonProcessingException jpe) {
-            throw new DataException(jpe);
-        }
-    }
+    /**
+     * Extract all merge fields from MailChimp list.
+     *
+     * @param task the task
+     * @return the map
+     * @throws JsonProcessingException the json processing exception
+     */
+    abstract Map<String, MergeField> extractMergeFieldsFromList(final MailChimpOutputPluginDelegate.PluginTask task)
+            throws JsonProcessingException;
 
     private Function<JsonNode, JsonNode> contactMapper(final Map<String, String> allowColumns)
     {
@@ -260,8 +258,6 @@ public abstract class MailChimpAbstractRecordBuffer
             @Override
             public JsonNode apply(JsonNode input)
             {
-                LOG.info(">>>>> Row data <<<<< " + input.toString());
-
                 ObjectNode property = JsonNodeFactory.instance.objectNode();
                 property.put("email_address", input.findPath(task.getEmailColumn()).asText());
                 property.put("status", task.getDoubleOptIn() ? PENDING.getType() : SUBSCRIBED.getType());
@@ -274,13 +270,21 @@ public abstract class MailChimpAbstractRecordBuffer
                 // Update additional merge fields if exist
                 if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
                     for (final Column column : schema.getColumns()) {
-                        LOG.info(">>>>> Column name | Column type <<<<<, {} | {}", column.getName(), column.getType().getName());
                         if (!"".equals(containsCaseInsensitive(column.getName(), task.getMergeFields().get()))) {
-                            if (column.getType().equals(JSON)) {
-                                mergeFields.set(column.getName().toUpperCase(), input.findValue(column.getName()));
+                            String value = input.findValue(column.getName()).asText();
+
+                            // Try to convert to Json from string with the merge field's type is address
+                            if (availableMergeFields.get(column.getName()).getType()
+                                    .equals(MergeField.MergeFieldType.ADDRESS.getType())) {
+                                JsonNode addressNode = toJsonNode(value);
+                                if (addressNode instanceof NullNode) {
+                                    mergeFields.put(column.getName().toUpperCase(), value);
+                                }
+                                else {
+                                    mergeFields.set(column.getName().toUpperCase(), addressNode);
+                                }
                             }
                             else {
-                                String value = input.findValue(column.getName()).asText();
                                 mergeFields.put(column.getName().toUpperCase(), value);
                             }
                         }

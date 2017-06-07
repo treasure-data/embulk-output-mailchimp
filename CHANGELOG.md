@@ -1,6 +1,3 @@
-## 0.3.5.1 - 2017-06-02
-- Enabled log query for logging on console temporary [#21](https://github.com/treasure-data/embulk-output-mailchimp/pull/21)
-
 ## 0.3.4 - 2017-06-01
 - Enable JSON type for `address` MERGE field [#20](https://github.com/treasure-data/embulk-output-mailchimp/pull/20)
 
