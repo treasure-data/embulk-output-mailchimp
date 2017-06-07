@@ -1,4 +1,7 @@
-## 0.3.6
+## 0.3.7 - 2017-06-07
+- Added `ConfigException` while using not exists `list_id` [#23](https://github.com/treasure-data/embulk-output-mailchimp/pull/23)
+
+## 0.3.6 -2017-06-07
 - Removed log query and add API to check address type [#22](https://github.com/treasure-data/embulk-output-mailchimp/pull/22)
 - Enabled log query for logging on console temporary [#21](https://github.com/treasure-data/embulk-output-mailchimp/pull/21)
 
