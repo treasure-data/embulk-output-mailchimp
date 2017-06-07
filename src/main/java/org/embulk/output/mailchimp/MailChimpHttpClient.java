@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.google.common.base.Throwables;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.HttpResponseException;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 import org.eclipse.jetty.client.util.StringContentProvider;
@@ -64,36 +65,46 @@ public class MailChimpHttpClient
     {
         final String authorizationHeader = getAuthorizationHeader(task);
 
-        String responseBody = retryHelper.requestWithRetry(
-                new StringJetty92ResponseEntityReader(task.getTimeoutMillis()),
-                new Jetty92SingleRequester()
-                {
-                    @Override
-                    public void requestOnce(HttpClient client, Response.Listener responseListener)
+        try {
+            String responseBody = retryHelper.requestWithRetry(
+                    new StringJetty92ResponseEntityReader(task.getTimeoutMillis()),
+                    new Jetty92SingleRequester()
                     {
-                        Request request = client
-                                .newRequest(endpoint)
-                                .accept("application/json")
-                                .method(method);
-                        if (method == HttpMethod.POST || method == HttpMethod.PUT) {
-                            request.content(new StringContentProvider(content), "application/json;utf-8");
+                        @Override
+                        public void requestOnce(HttpClient client, Response.Listener responseListener)
+                        {
+                            Request request = client
+                                    .newRequest(endpoint)
+                                    .accept("application/json")
+                                    .method(method);
+                            if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+                                request.content(new StringContentProvider(content), "application/json;utf-8");
+                            }
+
+                            if (!authorizationHeader.isEmpty()) {
+                                request.header("Authorization", authorizationHeader);
+                            }
+                            request.send(responseListener);
                         }
 
-                        if (!authorizationHeader.isEmpty()) {
-                            request.header("Authorization", authorizationHeader);
+                        @Override
+                        public boolean isResponseStatusToRetry(Response response)
+                        {
+                            int status = response.getStatus();
+                            return status == 429 || status / 100 != 4;
                         }
-                        request.send(responseListener);
-                    }
+                    });
 
-                    @Override
-                    public boolean isResponseStatusToRetry(Response response)
-                    {
-                        int status = response.getStatus();
-                        return status == 429 || status / 100 != 4;
-                    }
-                });
+            return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
+        }
+        catch (HttpResponseException hre) {
+            LOG.error("Exception occurred while sending request: {}", hre.getMessage());
+            if (hre.getResponse().getStatus() == 404) {
+                throw new ConfigException("The `list id` could not be found");
+            }
 
-        return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
+            throw Throwables.propagate(hre);
+        }
     }
 
     private JsonNode parseJson(final String json)
