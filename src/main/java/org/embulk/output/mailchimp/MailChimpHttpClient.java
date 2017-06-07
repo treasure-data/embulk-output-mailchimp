@@ -65,46 +65,42 @@ public class MailChimpHttpClient
     {
         final String authorizationHeader = getAuthorizationHeader(task);
 
-        try {
-            String responseBody = retryHelper.requestWithRetry(
-                    new StringJetty92ResponseEntityReader(task.getTimeoutMillis()),
-                    new Jetty92SingleRequester()
+        String responseBody = retryHelper.requestWithRetry(
+                new StringJetty92ResponseEntityReader(task.getTimeoutMillis()),
+                new Jetty92SingleRequester()
+                {
+                    @Override
+                    public void requestOnce(HttpClient client, Response.Listener responseListener)
                     {
-                        @Override
-                        public void requestOnce(HttpClient client, Response.Listener responseListener)
-                        {
-                            Request request = client
-                                    .newRequest(endpoint)
-                                    .accept("application/json")
-                                    .method(method);
-                            if (method == HttpMethod.POST || method == HttpMethod.PUT) {
-                                request.content(new StringContentProvider(content), "application/json;utf-8");
-                            }
-
-                            if (!authorizationHeader.isEmpty()) {
-                                request.header("Authorization", authorizationHeader);
-                            }
-                            request.send(responseListener);
+                        Request request = client
+                                .newRequest(endpoint)
+                                .accept("application/json")
+                                .method(method);
+                        if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+                            request.content(new StringContentProvider(content), "application/json;utf-8");
                         }
 
-                        @Override
-                        public boolean isResponseStatusToRetry(Response response)
-                        {
-                            int status = response.getStatus();
-                            return status == 429 || status / 100 != 4;
+                        if (!authorizationHeader.isEmpty()) {
+                            request.header("Authorization", authorizationHeader);
                         }
-                    });
+                        request.send(responseListener);
+                    }
 
-            return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
-        }
-        catch (HttpResponseException hre) {
-            LOG.error("Exception occurred while sending request: {}", hre.getMessage());
-            if (hre.getResponse().getStatus() == 404) {
-                throw new ConfigException("The `list id` could not be found");
-            }
+                    @Override
+                    public boolean isResponseStatusToRetry(Response response)
+                    {
+                        int status = response.getStatus();
 
-            throw Throwables.propagate(hre);
-        }
+                        if (status == 404) {
+                            LOG.error("Exception occurred while sending request: {}", response.getReason());
+                            throw new ConfigException("The `list id` could not be found.");
+                        }
+
+                        return status == 429 || status / 100 != 4;
+                    }
+                });
+
+        return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
     }
 
     private JsonNode parseJson(final String json)
