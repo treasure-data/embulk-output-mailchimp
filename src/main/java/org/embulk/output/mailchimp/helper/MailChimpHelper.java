@@ -5,11 +5,13 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
+import org.embulk.output.mailchimp.model.AddressMergeFieldAttribute;
 
 import javax.annotation.Nullable;
 
@@ -104,5 +106,24 @@ public final class MailChimpHelper
         catch (IOException e) {
             return JsonNodeFactory.instance.nullNode();
         }
+    }
+
+    /**
+     * MailChimp API requires MERGE field's type is address that have to json with keys in order.
+     * {"addr1": "a", "addr2": "a1", "city": "c", "state": "s", "zip": "z", "country": "c"}
+     *
+     * @param originalNode the original node
+     * @param attrsInOrder the keys in order
+     * @return the object node
+     */
+    public static ObjectNode orderJsonNode(final JsonNode originalNode, final AddressMergeFieldAttribute[] attrsInOrder)
+    {
+        ObjectNode orderedNode = JsonNodeFactory.instance.objectNode();
+        for (AddressMergeFieldAttribute attr : attrsInOrder) {
+            orderedNode.put(attr.getName(),
+                            originalNode.findValue(attr.getName()) != null ? originalNode.findValue(attr.getName()).asText() : "");
+        }
+
+        return orderedNode;
     }
 }

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Multimap;
 import org.embulk.output.mailchimp.helper.MailChimpHelper;
+import org.embulk.output.mailchimp.model.AddressMergeFieldAttribute;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import java.util.List;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.extractMemberStatus;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.maskEmail;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.orderJsonNode;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.toJsonNode;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -81,5 +83,16 @@ public class TestMailChimpHelper
     public void test_toJsonNode_invalidJSonString()
     {
         assertEquals("Should be NullNode", NullNode.class, toJsonNode("abc").getClass());
+    }
+
+    @Test
+    public void test_orderJsonNode()
+    {
+        String given = "{\"addr1\":\"1234\",\"city\":\"mountain view\",\"country\":\"US\",\"state\":\"CA\",\"zip\":\"95869\"}";
+        AddressMergeFieldAttribute[] attributes = AddressMergeFieldAttribute.values();
+
+        String expect = "{\"addr1\":\"1234\",\"addr2\":\"\",\"city\":\"mountain view\",\"state\":\"CA\",\"zip\":\"95869\",\"country\":\"US\"}";
+        assertEquals("Should be JSON", ObjectNode.class, orderJsonNode(toJsonNode(given), attributes).getClass());
+        assertEquals("Should be match", expect, orderJsonNode(toJsonNode(given), attributes).toString());
     }
 }

@@ -15,6 +15,7 @@ import org.embulk.base.restclient.jackson.JacksonServiceRecord;
 import org.embulk.base.restclient.record.RecordBuffer;
 import org.embulk.base.restclient.record.ServiceRecord;
 import org.embulk.config.TaskReport;
+import org.embulk.output.mailchimp.model.AddressMergeFieldAttribute;
 import org.embulk.output.mailchimp.model.ErrorResponse;
 import org.embulk.output.mailchimp.model.InterestResponse;
 import org.embulk.output.mailchimp.model.MergeField;
@@ -34,6 +35,7 @@ import java.util.Map;
 
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.fromCommaSeparatedString;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.orderJsonNode;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.toJsonNode;
 import static org.embulk.output.mailchimp.model.MemberStatus.PENDING;
 import static org.embulk.output.mailchimp.model.MemberStatus.SUBSCRIBED;
@@ -281,7 +283,8 @@ public abstract class MailChimpAbstractRecordBuffer
                                     mergeFields.put(column.getName().toUpperCase(), value);
                                 }
                                 else {
-                                    mergeFields.set(column.getName().toUpperCase(), addressNode);
+                                    mergeFields.set(column.getName().toUpperCase(),
+                                                    orderJsonNode(addressNode, AddressMergeFieldAttribute.values()));
                                 }
                             }
                             else {
