@@ -1,3 +1,6 @@
+## 0.3.9 - 2017-06-09
+- Upgraded version to fix yanked gem file
+
 ## 0.3.8 - 2017-06-09
 - Fixed JSON format in MERGE field's type is address [#24](https://github.com/treasure-data/embulk-output-mailchimp/pull/24)
 
