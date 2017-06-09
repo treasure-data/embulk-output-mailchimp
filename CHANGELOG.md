@@ -1,3 +1,6 @@
+## 0.3.8 - 2017-06-09
+- Fixed JSON format in MERGE field's type is address [#24](https://github.com/treasure-data/embulk-output-mailchimp/pull/24)
+
 ## 0.3.7 - 2017-06-07
 - Added `ConfigException` while using not exists `list_id` [#23](https://github.com/treasure-data/embulk-output-mailchimp/pull/23)
 
