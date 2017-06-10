@@ -135,11 +135,13 @@ public abstract class MailChimpAbstractRecordBuffer
                 handleErrors(reportResponse.getErrors());
             }
 
-            cleanUp();
             return Exec.newTaskReport().set("pushed", totalCount);
         }
         catch (JsonProcessingException jpe) {
             throw new DataException(jpe);
+        }
+        finally {
+            cleanUp();
         }
     }
 
