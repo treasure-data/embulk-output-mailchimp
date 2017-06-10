@@ -138,9 +138,9 @@ public abstract class MailChimpAbstractRecordBuffer
         catch (JsonProcessingException jpe) {
             throw new DataException(jpe);
         }
-	finally {
+        finally {
             cleanUp();
-	}
+        }
     }
 
     /**
