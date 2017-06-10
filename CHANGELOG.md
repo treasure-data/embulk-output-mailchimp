@@ -1,3 +1,6 @@
+## 0.3.10 - 2017-06-10
+- Fixed `MailChimpAbstractRecordBuffer` to move `cleanUp` method call in finally block [#25](https://github.com/treasure-data/embulk-output-mailchimp/pull/25)
+
 ## 0.3.9 - 2017-06-09
 - Upgraded version to fix yanked gem file
 
