@@ -1,3 +1,6 @@
+## 0.3.11 - 2017-06-13
+- Upgraded version of `embulk-base-restclient` to fix IndexOutOfBoundException [#26](https://github.com/treasure-data/embulk-output-mailchimp/pull/26)
+
 ## 0.3.10 - 2017-06-10
 - Fixed `MailChimpAbstractRecordBuffer` to move `cleanUp` method call in finally block [#25](https://github.com/treasure-data/embulk-output-mailchimp/pull/25)
 
