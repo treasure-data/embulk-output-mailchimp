@@ -1,3 +1,6 @@
+## 0.3.12 - 2017-06-13
+- Fixed NPE while reading JSON data [#27](https://github.com/treasure-data/embulk-output-mailchimp/pull/27)
+
 ## 0.3.11 - 2017-06-13
 - Upgraded version of `embulk-base-restclient` to fix IndexOutOfBoundException [#26](https://github.com/treasure-data/embulk-output-mailchimp/pull/26)
 
