@@ -267,8 +267,7 @@ public abstract class MailChimpAbstractRecordBuffer
                 property.put("status", task.getDoubleOptIn() ? PENDING.getType() : SUBSCRIBED.getType());
                 ObjectNode mergeFields = JsonNodeFactory.instance.objectNode();
                 for (String allowColumn : allowColumns.keySet()) {
-                    JsonNode field = input.findValue(allowColumns.get(allowColumn));
-                    String value = field != null ? field.asText() : "";
+                    String value = !input.hasNonNull(allowColumns.get(allowColumn)) ? input.findValue(allowColumns.get(allowColumn)).asText() : "";
                     mergeFields.put(allowColumn, value);
                 }
 
@@ -276,8 +275,7 @@ public abstract class MailChimpAbstractRecordBuffer
                 if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
                     for (final Column column : schema.getColumns()) {
                         if (!"".equals(containsCaseInsensitive(column.getName(), task.getMergeFields().get()))) {
-                            JsonNode field = input.findValue(column.getName());
-                            String value = field != null ? field.asText() : "";
+                            String value = !input.hasNonNull(column.getName()) ? input.findValue(column.getName()).asText() : "";
 
                             // Try to convert to Json from string with the merge field's type is address
                             if (availableMergeFields.get(column.getName()).getType()
