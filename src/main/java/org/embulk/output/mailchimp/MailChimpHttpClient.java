@@ -62,54 +62,44 @@ public class MailChimpHttpClient
     public JsonNode sendRequest(final String endpoint, final HttpMethod method, final String content,
                                 final MailChimpOutputPluginDelegate.PluginTask task)
     {
-        try {
-            final String authorizationHeader = getAuthorizationHeader(task);
+        final String authorizationHeader = getAuthorizationHeader(task);
 
-            String responseBody = retryHelper.requestWithRetry(
-                    new StringJetty92ResponseEntityReader(task.getTimeoutMillis()),
-                    new Jetty92SingleRequester()
+        String responseBody = retryHelper.requestWithRetry(
+                new StringJetty92ResponseEntityReader(task.getTimeoutMillis()),
+                new Jetty92SingleRequester()
+                {
+                    @Override
+                    public void requestOnce(HttpClient client, Response.Listener responseListener)
                     {
-                        @Override
-                        public void requestOnce(HttpClient client, Response.Listener responseListener)
-                        {
-                            Request request = client
-                                    .newRequest(endpoint)
-                                    .accept("application/json")
-                                    .method(method);
-                            if (method == HttpMethod.POST || method == HttpMethod.PUT) {
-                                request.content(new StringContentProvider(content), "application/json;utf-8");
-                            }
-
-                            if (!authorizationHeader.isEmpty()) {
-                                request.header("Authorization", authorizationHeader);
-                            }
-                            request.send(responseListener);
+                        Request request = client
+                                .newRequest(endpoint)
+                                .accept("application/json")
+                                .method(method);
+                        if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+                            request.content(new StringContentProvider(content), "application/json;utf-8");
                         }
 
-                        @Override
-                        public boolean isResponseStatusToRetry(Response response)
-                        {
-                            int status = response.getStatus();
-
-                            if (status == 404) {
-                                LOG.error("Exception occurred while sending request: {}", response.getReason());
-                                throw new ConfigException("The `list id` could not be found.");
-                            }
-
-                            return status == 429 || status / 100 != 4;
+                        if (!authorizationHeader.isEmpty()) {
+                            request.header("Authorization", authorizationHeader);
                         }
-                    });
+                        request.send(responseListener);
+                    }
 
-            return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
-        }
-        finally {
-            try {
-                close();
-            }
-            catch (Exception ex) {
-                LOG.info("Unknown exception while closing connection.");
-            }
-        }
+                    @Override
+                    public boolean isResponseStatusToRetry(Response response)
+                    {
+                        int status = response.getStatus();
+
+                        if (status == 404) {
+                            LOG.error("Exception occurred while sending request: {}", response.getReason());
+                            throw new ConfigException("The `list id` could not be found.");
+                        }
+
+                        return status == 429 || status / 100 != 4;
+                    }
+                });
+
+        return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
     }
 
     private JsonNode parseJson(final String json)
