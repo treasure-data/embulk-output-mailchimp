@@ -140,6 +140,9 @@ public abstract class MailChimpAbstractRecordBuffer
         catch (JsonProcessingException jpe) {
             throw new DataException(jpe);
         }
+        catch (Exception ex) {
+            throw Throwables.propagate(ex);
+        }
     }
 
     /**
@@ -198,11 +201,6 @@ public abstract class MailChimpAbstractRecordBuffer
     {
         return categories;
     }
-
-    /**
-     * Clean up resource.
-     */
-    abstract void cleanUp();
 
     /**
      * Push payload data to MailChimp API and get @{@link ReportResponse}
