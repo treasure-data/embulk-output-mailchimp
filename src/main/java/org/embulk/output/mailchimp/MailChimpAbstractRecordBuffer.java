@@ -140,9 +140,6 @@ public abstract class MailChimpAbstractRecordBuffer
         catch (JsonProcessingException jpe) {
             throw new DataException(jpe);
         }
-        finally {
-            cleanUp();
-        }
     }
 
     /**
@@ -203,7 +200,7 @@ public abstract class MailChimpAbstractRecordBuffer
     }
 
     /**
-     * Clean up.
+     * Clean up resource.
      */
     abstract void cleanUp();
 

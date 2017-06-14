@@ -53,6 +53,18 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
         client.close();
     }
 
+    @Override
+    public void finish()
+    {
+        cleanUp();
+    }
+
+    @Override
+    public void close()
+    {
+        cleanUp();
+    }
+
     /**
      * Build an array of email subscribers and batch insert via bulk MailChimp API
      * Reference: https://developer.mailchimp.com/documentation/mailchimp/reference/lists/#create-post_lists_list_id
