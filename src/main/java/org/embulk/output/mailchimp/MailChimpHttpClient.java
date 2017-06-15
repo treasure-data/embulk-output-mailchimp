@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.Base64Variants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Request;
@@ -92,6 +93,7 @@ public class MailChimpHttpClient
 
                         if (status == 404) {
                             LOG.error("Exception occurred while sending request: {}", response.getReason());
+                            close();
                             throw new ConfigException("The `list id` could not be found.");
                         }
 
@@ -132,7 +134,8 @@ public class MailChimpHttpClient
         }
     }
 
-    private Jetty92RetryHelper createRetryHelper(MailChimpOutputPluginDelegate.PluginTask task)
+    @VisibleForTesting
+    public Jetty92RetryHelper createRetryHelper(MailChimpOutputPluginDelegate.PluginTask task)
     {
         return new Jetty92RetryHelper(
                 task.getMaximumRetries(),
