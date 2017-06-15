@@ -123,7 +123,6 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
 
             for (String category : interestCategoryNames) {
                 if (!availableCategories.contains(category)) {
-                    client.close();
                     throw new ConfigException("Invalid interest category name: '" + category + "'");
                 }
             }
@@ -159,7 +158,6 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
             return domain;
         }
         else {
-            client.close();
             throw new ConfigException("Could not get data center");
         }
     }
