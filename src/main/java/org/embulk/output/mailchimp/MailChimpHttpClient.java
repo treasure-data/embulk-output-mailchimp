@@ -31,7 +31,6 @@ public class MailChimpHttpClient
     private final ObjectMapper jsonMapper = new ObjectMapper()
             .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false)
             .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    private Jetty92RetryHelper retryHelper;
 
     /**
      * Instantiates a new Mailchimp http client.
@@ -40,17 +39,6 @@ public class MailChimpHttpClient
      */
     public MailChimpHttpClient(MailChimpOutputPluginDelegate.PluginTask task)
     {
-        retryHelper = createRetryHelper(task);
-    }
-
-    /**
-     * Close @{@link Jetty92RetryHelper} connection
-     */
-    public void close()
-    {
-        if (retryHelper != null) {
-            retryHelper.close();
-        }
     }
 
     public JsonNode sendRequest(final String endpoint, final HttpMethod method,
@@ -62,44 +50,50 @@ public class MailChimpHttpClient
     public JsonNode sendRequest(final String endpoint, final HttpMethod method, final String content,
                                 final MailChimpOutputPluginDelegate.PluginTask task)
     {
-        final String authorizationHeader = getAuthorizationHeader(task);
+        try (final Jetty92RetryHelper retryHelper = createRetryHelper(task)) {
+            final String authorizationHeader = getAuthorizationHeader(task);
 
-        String responseBody = retryHelper.requestWithRetry(
-                new StringJetty92ResponseEntityReader(task.getTimeoutMillis()),
-                new Jetty92SingleRequester()
-                {
-                    @Override
-                    public void requestOnce(HttpClient client, Response.Listener responseListener)
+            String responseBody = retryHelper.requestWithRetry(
+                    new StringJetty92ResponseEntityReader(task.getTimeoutMillis()),
+                    new Jetty92SingleRequester()
                     {
-                        Request request = client
-                                .newRequest(endpoint)
-                                .accept("application/json")
-                                .method(method);
-                        if (method == HttpMethod.POST || method == HttpMethod.PUT) {
-                            request.content(new StringContentProvider(content), "application/json;utf-8");
+                        @Override
+                        public void requestOnce(HttpClient client, Response.Listener responseListener)
+                        {
+                            Request request = client
+                                    .newRequest(endpoint)
+                                    .accept("application/json")
+                                    .method(method);
+                            if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+                                request.content(new StringContentProvider(content), "application/json;utf-8");
+                            }
+
+                            if (!authorizationHeader.isEmpty()) {
+                                request.header("Authorization", authorizationHeader);
+                            }
+                            request.send(responseListener);
                         }
 
-                        if (!authorizationHeader.isEmpty()) {
-                            request.header("Authorization", authorizationHeader);
+                        @Override
+                        public boolean isResponseStatusToRetry(Response response)
+                        {
+                            int status = response.getStatus();
+
+                            if (status == 404) {
+                                LOG.error("Exception occurred while sending request: {}", response.getReason());
+                                throw new ConfigException("The `list id` could not be found.");
+                            }
+
+                            return status == 429 || status / 100 != 4;
                         }
-                        request.send(responseListener);
-                    }
+                    });
 
-                    @Override
-                    public boolean isResponseStatusToRetry(Response response)
-                    {
-                        int status = response.getStatus();
-
-                        if (status == 404) {
-                            LOG.error("Exception occurred while sending request: {}", response.getReason());
-                            throw new ConfigException("The `list id` could not be found.");
-                        }
-
-                        return status == 429 || status / 100 != 4;
-                    }
-                });
-
-        return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
+            return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
+        }
+        catch (Exception ex) {
+            LOG.info("Exception occurred while sending request.");
+            throw Throwables.propagate(ex);
+        }
     }
 
     private JsonNode parseJson(final String json)

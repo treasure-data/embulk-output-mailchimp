@@ -48,9 +48,13 @@ public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
     }
 
     @Override
-    void cleanUp()
+    public void finish()
     {
-        client.close();
+    }
+
+    @Override
+    public void close()
+    {
     }
 
     /**
