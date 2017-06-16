@@ -1,3 +1,6 @@
+## 0.3.13 - 2017-06-16
+- Upgraded `embulk-base-restclient` to v0.5.3 and fixed hang job [#28](https://github.com/treasure-data/embulk-output-mailchimp/pull/28)
+
 ## 0.3.12 - 2017-06-13
 - Fixed NPE while reading JSON data [#27](https://github.com/treasure-data/embulk-output-mailchimp/pull/27)
 
