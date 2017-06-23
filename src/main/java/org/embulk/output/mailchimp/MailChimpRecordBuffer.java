@@ -1,208 +1,276 @@
 package org.embulk.output.mailchimp;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
+import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
-import org.eclipse.jetty.http.HttpMethod;
-import org.embulk.config.ConfigException;
-import org.embulk.output.mailchimp.helper.MailChimpHelper;
-import org.embulk.output.mailchimp.model.CategoriesResponse;
-import org.embulk.output.mailchimp.model.ErrorResponse;
-import org.embulk.output.mailchimp.model.InterestCategoriesResponse;
+import org.embulk.base.restclient.jackson.JacksonServiceRecord;
+import org.embulk.base.restclient.record.RecordBuffer;
+import org.embulk.base.restclient.record.ServiceRecord;
+import org.embulk.config.TaskReport;
+import org.embulk.output.mailchimp.model.AddressMergeFieldAttribute;
 import org.embulk.output.mailchimp.model.InterestResponse;
-import org.embulk.output.mailchimp.model.InterestsResponse;
 import org.embulk.output.mailchimp.model.MergeField;
-import org.embulk.output.mailchimp.model.MergeFields;
-import org.embulk.output.mailchimp.model.MetaDataResponse;
 import org.embulk.output.mailchimp.model.ReportResponse;
+import org.embulk.spi.Column;
+import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.slf4j.Logger;
 
-import javax.annotation.Nullable;
-
-import java.text.MessageFormat;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.embulk.output.mailchimp.model.AuthMethod.API_KEY;
-import static org.embulk.output.mailchimp.model.AuthMethod.OAUTH;
+import static org.embulk.output.mailchimp.MailChimpOutputPluginDelegate.PluginTask;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.fromCommaSeparatedString;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.orderJsonNode;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.toJsonNode;
+import static org.embulk.output.mailchimp.model.MemberStatus.PENDING;
+import static org.embulk.output.mailchimp.model.MemberStatus.SUBSCRIBED;
 
 /**
- * Created by thangnc on 4/25/17.
+ * Created by thangnc on 4/14/17.
  */
-public class MailChimpRecordBuffer extends MailChimpAbstractRecordBuffer
+public class MailChimpRecordBuffer
+        extends RecordBuffer
 {
     private static final Logger LOG = Exec.getLogger(MailChimpRecordBuffer.class);
-    private MailChimpHttpClient client;
+    private static final int MAX_RECORD_PER_BATCH_REQUEST = 500;
+    private final MailChimpOutputPluginDelegate.PluginTask task;
+    private final MailChimpClient mailChimpClient;
+    private final ObjectMapper mapper;
+    private final Schema schema;
+    private int requestCount;
+    private long totalCount;
+    private List<JsonNode> records;
+    private Map<String, Map<String, InterestResponse>> categories;
+    private Map<String, MergeField> availableMergeFields;
 
-    public MailChimpRecordBuffer(final Schema schema, final MailChimpOutputPluginDelegate.PluginTask task)
+    /**
+     * Instantiates a new Mail chimp abstract record buffer.
+     *
+     * @param schema the schema
+     * @param task   the task
+     */
+    public MailChimpRecordBuffer(final Schema schema, final PluginTask task)
     {
-        super(schema, task);
-        client = new MailChimpHttpClient(task);
+        this.schema = schema;
+        this.task = task;
+        this.mapper = new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
+        this.records = new ArrayList<>();
+        this.categories = new HashMap<>();
+        this.mailChimpClient = new MailChimpClient(task);
+    }
+
+    @Override
+    public void bufferRecord(ServiceRecord serviceRecord)
+    {
+        JacksonServiceRecord jacksonServiceRecord;
+
+        try {
+            jacksonServiceRecord = (JacksonServiceRecord) serviceRecord;
+            JsonNode record = mapper.readTree(jacksonServiceRecord.toString()).get("record");
+
+            requestCount++;
+            totalCount++;
+
+            records.add(record);
+            if (requestCount >= MAX_RECORD_PER_BATCH_REQUEST) {
+                ObjectNode subcribers = processSubcribers(records, task);
+                ReportResponse reportResponse = mailChimpClient.push(subcribers, task);
+
+                if (totalCount % 1000 == 0) {
+                    LOG.info("Pushed {} records", totalCount);
+                }
+
+                LOG.info("{} records created, {} records updated, {} records failed",
+                         reportResponse.getTotalCreated(),
+                         reportResponse.getTotalUpdated(),
+                         reportResponse.getErrorCount());
+                mailChimpClient.handleErrors(reportResponse.getErrors());
+
+                records = new ArrayList<>();
+                requestCount = 0;
+            }
+        }
+        catch (JsonProcessingException jpe) {
+            throw new DataException(jpe);
+        }
+        catch (ClassCastException ex) {
+            throw new RuntimeException(ex);
+        }
+        catch (IOException ex) {
+            throw Throwables.propagate(ex);
+        }
+    }
+
+    @Override
+    public TaskReport commitWithTaskReportUpdated(TaskReport taskReport)
+    {
+        try {
+            if (records.size() > 0) {
+                ObjectNode subcribers = processSubcribers(records, task);
+                ReportResponse reportResponse = mailChimpClient.push(subcribers, task);
+                LOG.info("Pushed {} records", records.size());
+                LOG.info("{} records created, {} records updated, {} records failed",
+                         reportResponse.getTotalCreated(),
+                         reportResponse.getTotalUpdated(),
+                         reportResponse.getErrorCount());
+                mailChimpClient.handleErrors(reportResponse.getErrors());
+            }
+
+            return Exec.newTaskReport().set("pushed", totalCount);
+        }
+        catch (JsonProcessingException jpe) {
+            throw new DataException(jpe);
+        }
+        catch (Exception ex) {
+            throw Throwables.propagate(ex);
+        }
     }
 
     @Override
     public void finish()
     {
+        // Do not close here
     }
 
     @Override
     public void close()
     {
+        // Do not implement
     }
 
     /**
-     * Build an array of email subscribers and batch insert via bulk MailChimp API
-     * Reference: https://developer.mailchimp.com/documentation/mailchimp/reference/lists/#create-post_lists_list_id
+     * Receive data and build payload json that contains subscribers
      *
-     * @param node the data
+     * @param data the data
      * @param task the task
-     * @throws JsonProcessingException the json processing exception
+     * @return the object node
      */
-    @Override
-    public ReportResponse push(final ObjectNode node, MailChimpOutputPluginDelegate.PluginTask task)
+    private ObjectNode processSubcribers(final List<JsonNode> data, final PluginTask task)
             throws JsonProcessingException
     {
-        String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}",
-                                               task.getListId());
+        LOG.info("Start to process subscriber data");
 
-        JsonNode response = client.sendRequest(endpoint, HttpMethod.POST, node.toString(), task);
-        return getMapper().treeToValue(response, ReportResponse.class);
+        // Should loop the names and get the id of interest categories.
+        // The reason why we put categories validation here because we can not share data between instance.
+        categories = mailChimpClient.extractInterestCategoriesByGroupNames(task);
+
+        // Extract merge fields detail
+        availableMergeFields = mailChimpClient.extractMergeFieldsFromList(task);
+
+        // Required merge fields
+        Map<String, String> map = new HashMap<>();
+        map.put("FNAME", task.getFnameColumn());
+        map.put("LNAME", task.getLnameColumn());
+
+        List<JsonNode> subscribersList = FluentIterable.from(data)
+                .transform(contactMapper(map))
+                .toList();
+
+        ObjectNode subscribers = JsonNodeFactory.instance.objectNode();
+        subscribers.putArray("members").addAll(subscribersList);
+        subscribers.put("update_existing", task.getUpdateExisting());
+        return subscribers;
     }
 
-    @Override
-    void handleErrors(List<ErrorResponse> errorResponses)
+    private Function<JsonNode, JsonNode> contactMapper(final Map<String, String> allowColumns)
     {
-        if (!errorResponses.isEmpty()) {
-            StringBuilder errorMessage = new StringBuilder();
-
-            for (ErrorResponse errorResponse : errorResponses) {
-                errorMessage.append(MessageFormat.format("\nEmail `{0}` failed cause `{1}`",
-                                                         MailChimpHelper.maskEmail(errorResponse.getEmailAddress()),
-                                                         MailChimpHelper.maskEmail(errorResponse.getError())));
-            }
-
-            LOG.error(errorMessage.toString());
-        }
-    }
-
-    Map<String, Map<String, InterestResponse>> extractInterestCategoriesByGroupNames(final MailChimpOutputPluginDelegate.PluginTask task)
-            throws JsonProcessingException
-    {
-        Map<String, Map<String, InterestResponse>> categories = new HashMap<>();
-        if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
-            List<String> interestCategoryNames = task.getGroupingColumns().get();
-
-            String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/interest-categories",
-                                                   task.getListId());
-
-            JsonNode response = client.sendRequest(endpoint, HttpMethod.GET, task);
-            InterestCategoriesResponse interestCategoriesResponse = getMapper().treeToValue(response,
-                                                                                            InterestCategoriesResponse.class);
-
-            Function<CategoriesResponse, String> function = new Function<CategoriesResponse, String>()
-            {
-                @Override
-                public String apply(CategoriesResponse input)
-                {
-                    return input.getTitle().toLowerCase();
-                }
-            };
-
-            // Transform to a list of available category names and validate with data that user input
-            ImmutableList<String> availableCategories = FluentIterable
-                    .from(interestCategoriesResponse.getCategories())
-                    .transform(function)
-                    .toList();
-
-            for (String category : interestCategoryNames) {
-                if (!availableCategories.contains(category)) {
-                    throw new ConfigException("Invalid interest category name: '" + category + "'");
-                }
-            }
-
-            for (CategoriesResponse categoriesResponse : interestCategoriesResponse.getCategories()) {
-                String detailEndpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/interest-categories/{1}/interests",
-                                                             task.getListId(),
-                                                             categoriesResponse.getId());
-                response = client.sendRequest(detailEndpoint, HttpMethod.GET, task);
-                InterestsResponse interestsResponse = getMapper().treeToValue(response, InterestsResponse.class);
-                categories.put(categoriesResponse.getTitle().toLowerCase(),
-                               convertInterestCategoryToMap(interestsResponse.getInterests()));
-            }
-        }
-
-        return categories;
-    }
-
-    @Override
-    String extractDataCenter(MailChimpOutputPluginDelegate.PluginTask task) throws JsonProcessingException
-    {
-        if (task.getAuthMethod() == OAUTH) {
-            // Extract data center from meta data URL
-            JsonNode response = client.sendRequest("https://login.mailchimp.com/oauth2/metadata", HttpMethod.GET, task);
-            MetaDataResponse metaDataResponse = getMapper().treeToValue(response, MetaDataResponse.class);
-            return metaDataResponse.getDc();
-        }
-        else if (task.getAuthMethod() == API_KEY && task.getApikey().isPresent()) {
-            // Authenticate and return data center
-            String domain = task.getApikey().get().split("-")[1];
-            String endpoint = MessageFormat.format(mailchimpEndpoint + "/", domain);
-            client.sendRequest(endpoint, HttpMethod.GET, task);
-            return domain;
-        }
-        else {
-            throw new ConfigException("Could not get data center");
-        }
-    }
-
-    @Override
-    Map<String, MergeField> extractMergeFieldsFromList(MailChimpOutputPluginDelegate.PluginTask task) throws JsonProcessingException
-    {
-        String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/merge-fields",
-                                               task.getListId());
-        JsonNode response = client.sendRequest(endpoint, HttpMethod.GET, task);
-        MergeFields mergeFields = getMapper().treeToValue(response,
-                                                          MergeFields.class);
-        return convertMergeFieldToMap(mergeFields.getMergeFields());
-    }
-
-    private Map<String, InterestResponse> convertInterestCategoryToMap(final List<InterestResponse> interestResponseList)
-    {
-        Function<InterestResponse, String> function = new Function<InterestResponse, String>()
+        return new Function<JsonNode, JsonNode>()
         {
             @Override
-            public String apply(@Nullable InterestResponse input)
+            public JsonNode apply(JsonNode input)
             {
-                return input.getName();
+                ObjectNode property = JsonNodeFactory.instance.objectNode();
+                property.put("email_address", input.findPath(task.getEmailColumn()).asText());
+                property.put("status", task.getDoubleOptIn() ? PENDING.getType() : SUBSCRIBED.getType());
+                ObjectNode mergeFields = JsonNodeFactory.instance.objectNode();
+                for (String allowColumn : allowColumns.keySet()) {
+                    String value = input.hasNonNull(allowColumns.get(allowColumn)) ? input.findValue(allowColumns.get(allowColumn)).asText() : "";
+                    mergeFields.put(allowColumn, value);
+                }
+
+                // Update additional merge fields if exist
+                if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
+                    for (final Column column : schema.getColumns()) {
+                        if (!"".equals(containsCaseInsensitive(column.getName(), task.getMergeFields().get()))) {
+                            String value = input.hasNonNull(column.getName()) ? input.findValue(column.getName()).asText() : "";
+
+                            // Try to convert to Json from string with the merge field's type is address
+                            if (availableMergeFields.get(column.getName()).getType()
+                                    .equals(MergeField.MergeFieldType.ADDRESS.getType())) {
+                                JsonNode addressNode = toJsonNode(value);
+                                if (addressNode instanceof NullNode) {
+                                    mergeFields.put(column.getName().toUpperCase(), value);
+                                }
+                                else {
+                                    mergeFields.set(column.getName().toUpperCase(),
+                                                    orderJsonNode(addressNode, AddressMergeFieldAttribute.values()));
+                                }
+                            }
+                            else {
+                                mergeFields.put(column.getName().toUpperCase(), value);
+                            }
+                        }
+                    }
+                }
+
+                property.set("merge_fields", mergeFields);
+
+                // Update interest categories if exist
+                if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
+                    property.set("interests", buildInterestCategories(task, input));
+                }
+
+                return property;
             }
         };
-
-        return Maps.uniqueIndex(FluentIterable.from(interestResponseList)
-                                        .toList(),
-                                function);
     }
 
-    private Map<String, MergeField> convertMergeFieldToMap(final List<MergeField> mergeFieldList)
+    private ObjectNode buildInterestCategories(final MailChimpOutputPluginDelegate.PluginTask task,
+                                               final JsonNode input)
     {
-        Function<MergeField, String> function = new Function<MergeField, String>()
-        {
-            @Nullable
-            @Override
-            public String apply(@Nullable MergeField input)
-            {
-                return input.getTag().toLowerCase();
-            }
-        };
+        ObjectNode interests = JsonNodeFactory.instance.objectNode();
 
-        return Maps.uniqueIndex(FluentIterable.from(mergeFieldList)
-                                        .toList(),
-                                function);
+        for (String category : task.getGroupingColumns().get()) {
+            String inputValue = input.findValue(category).asText();
+            List<String> interestValues = fromCommaSeparatedString(inputValue);
+            Map<String, InterestResponse> availableCategories = categories.get(category);
+
+            // Only update user-predefined categories if replace interests != true
+            if (!task.getReplaceInterests()) {
+                for (String interestValue : interestValues) {
+                    if (availableCategories.get(interestValue) != null) {
+                        interests.put(availableCategories.get(interestValue).getId(), true);
+                    }
+                }
+            } // Otherwise, force update all categories include user-predefined categories
+            else if (task.getReplaceInterests()) {
+                for (String availableCategory : availableCategories.keySet()) {
+                    if (interestValues.contains(availableCategory)) {
+                        interests.put(availableCategories.get(availableCategory).getId(), true);
+                    }
+                    else {
+                        interests.put(availableCategories.get(availableCategory).getId(), false);
+                    }
+                }
+            }
+        }
+
+        return interests;
     }
 }
