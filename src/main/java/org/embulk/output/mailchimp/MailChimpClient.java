@@ -196,7 +196,7 @@ public class MailChimpClient
             }
         }
         catch (Exception e) {
-            throw new ConfigException("Could not get data center");
+            throw new ConfigException("Could not get data center", e);
         }
     }
 
