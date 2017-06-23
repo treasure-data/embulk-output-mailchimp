@@ -47,6 +47,11 @@ public class MailChimpClient
     private MailChimpHttpClient client;
     private final ObjectMapper mapper;
 
+    /**
+     * Instantiates a new Mail chimp client.
+     *
+     * @param task the task
+     */
     public MailChimpClient(final MailChimpOutputPluginDelegate.PluginTask task)
     {
         mailchimpEndpoint = Joiner.on("/").join("https://{0}.api.mailchimp.com", API_VERSION);
@@ -63,6 +68,7 @@ public class MailChimpClient
      *
      * @param node the data
      * @param task the task
+     * @return the report response
      * @throws JsonProcessingException the json processing exception
      */
     ReportResponse push(final ObjectNode node, MailChimpOutputPluginDelegate.PluginTask task)
@@ -75,21 +81,36 @@ public class MailChimpClient
         return mapper.treeToValue(response, ReportResponse.class);
     }
 
+    /**
+     * Handle detail errors after call bulk MailChimp API
+     *
+     * @param errorResponses the error responses
+     */
     void handleErrors(List<ErrorResponse> errorResponses)
     {
         if (!errorResponses.isEmpty()) {
             StringBuilder errorMessage = new StringBuilder();
 
             for (ErrorResponse errorResponse : errorResponses) {
-                errorMessage.append(MessageFormat.format("\nEmail `{0}` failed cause `{1}`",
+                errorMessage.append(MessageFormat.format("`{0}` failed cause `{1}`\n",
                                                          MailChimpHelper.maskEmail(errorResponse.getEmailAddress()),
                                                          MailChimpHelper.maskEmail(errorResponse.getError())));
             }
 
+            LOG.error("Error response from MailChimp: ");
             LOG.error(errorMessage.toString());
         }
     }
 
+    /**
+     * Extract interest categories by group names. Loop via categories and fetch category details
+     * Reference: https://developer.mailchimp.com/documentation/mailchimp/reference/lists/interest-categories/#read-get_lists_list_id_interest_categories
+     * https://developer.mailchimp.com/documentation/mailchimp/reference/lists/interest-categories/#read-get_lists_list_id_interest_categories_interest_category_id
+     *
+     * @param task the task
+     * @return the map
+     * @throws JsonProcessingException the json processing exception
+     */
     Map<String, Map<String, InterestResponse>> extractInterestCategoriesByGroupNames(final MailChimpOutputPluginDelegate.PluginTask task)
             throws JsonProcessingException
     {
@@ -139,6 +160,14 @@ public class MailChimpClient
         return categories;
     }
 
+    /**
+     * Extract merge fields from the list, find correct merge fields from API and put into the map to use
+     * Reference: https://developer.mailchimp.com/documentation/mailchimp/reference/lists/merge-fields/#read-get_lists_list_id_merge_fields
+     *
+     * @param task the task
+     * @return the map
+     * @throws JsonProcessingException the json processing exception
+     */
     Map<String, MergeField> extractMergeFieldsFromList(MailChimpOutputPluginDelegate.PluginTask task) throws JsonProcessingException
     {
         String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/merge-fields",
@@ -166,7 +195,7 @@ public class MailChimpClient
                 mailchimpEndpoint = MessageFormat.format(mailchimpEndpoint, domain);
             }
         }
-        catch (JsonProcessingException jpe) {
+        catch (Exception e) {
             throw new ConfigException("Could not get data center");
         }
     }

@@ -96,7 +96,7 @@ public class MailChimpRecordBuffer
                     LOG.info("Pushed {} records", totalCount);
                 }
 
-                LOG.info("{} records created, {} records updated, {} records failed",
+                LOG.info("Response from MailChimp: {} records created, {} records updated, {} records failed",
                          reportResponse.getTotalCreated(),
                          reportResponse.getTotalUpdated(),
                          reportResponse.getErrorCount());
@@ -125,7 +125,7 @@ public class MailChimpRecordBuffer
                 ObjectNode subcribers = processSubcribers(records, task);
                 ReportResponse reportResponse = mailChimpClient.push(subcribers, task);
                 LOG.info("Pushed {} records", records.size());
-                LOG.info("{} records created, {} records updated, {} records failed",
+                LOG.info("Response from MailChimp: {} records created, {} records updated, {} records failed",
                          reportResponse.getTotalCreated(),
                          reportResponse.getTotalUpdated(),
                          reportResponse.getErrorCount());
