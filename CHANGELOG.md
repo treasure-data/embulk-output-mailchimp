@@ -1,3 +1,6 @@
+## 0.3.14 - 2017-06-26
+- Make clear the log message and renamed class `MailChimpClient` [#29](https://github.com/treasure-data/embulk-output-mailchimp/pull/29)
+
 ## 0.3.13 - 2017-06-16
 - Upgraded `embulk-base-restclient` to v0.5.3 and fixed hang job [#28](https://github.com/treasure-data/embulk-output-mailchimp/pull/28)
 
