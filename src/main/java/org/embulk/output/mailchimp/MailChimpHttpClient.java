@@ -21,6 +21,8 @@ import org.embulk.util.retryhelper.jetty92.StringJetty92ResponseEntityReader;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Created by thangnc on 4/14/17.
@@ -85,6 +87,17 @@ public class MailChimpHttpClient
                             }
 
                             return status == 429 || status / 100 != 4;
+                        }
+
+                        @Override
+                        protected boolean isExceptionToRetry(Exception exception)
+                        {
+                            // This check is to make sure the exception is retryable, e.g: server not found, internal server error...
+                            if (exception instanceof ConfigException || exception instanceof ExecutionException) {
+                                return toRetry((Exception) exception.getCause());
+                            }
+
+                            return exception instanceof TimeoutException || super.isExceptionToRetry(exception);
                         }
                     });
 
