@@ -1,3 +1,6 @@
+## 0.3.15 - 2017-07-26
+- Add checking exception to retry [#30](https://github.com/treasure-data/embulk-output-mailchimp/pull/30)
+
 ## 0.3.14 - 2017-06-26
 - Make clear the log message and renamed class `MailChimpClient` [#29](https://github.com/treasure-data/embulk-output-mailchimp/pull/29)
 
