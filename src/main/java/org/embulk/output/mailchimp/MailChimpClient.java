@@ -11,6 +11,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+import org.eclipse.jetty.client.HttpResponseException;
 import org.eclipse.jetty.http.HttpMethod;
 import org.embulk.config.ConfigException;
 import org.embulk.output.mailchimp.helper.MailChimpHelper;
@@ -23,6 +24,7 @@ import org.embulk.output.mailchimp.model.MergeField;
 import org.embulk.output.mailchimp.model.MergeFields;
 import org.embulk.output.mailchimp.model.MetaDataResponse;
 import org.embulk.output.mailchimp.model.ReportResponse;
+import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
 import org.slf4j.Logger;
 
@@ -180,23 +182,33 @@ public class MailChimpClient
 
     private void extractDataCenter(MailChimpOutputPluginDelegate.PluginTask task)
     {
-        try {
-            if (task.getAuthMethod() == OAUTH) {
-                // Extract data center from meta data URL
-                JsonNode response = client.sendRequest("https://login.mailchimp.com/oauth2/metadata", HttpMethod.GET, task);
-                MetaDataResponse metaDataResponse = mapper.treeToValue(response, MetaDataResponse.class);
+        if (task.getAuthMethod() == OAUTH) {
+            // Extract data center from meta data URL
+            JsonNode response = client.sendRequest("https://login.mailchimp.com/oauth2/metadata", HttpMethod.GET, task);
+            MetaDataResponse metaDataResponse;
+            try {
+                metaDataResponse = mapper.treeToValue(response, MetaDataResponse.class);
                 mailchimpEndpoint = MessageFormat.format(mailchimpEndpoint, metaDataResponse.getDc());
             }
-            else if (task.getAuthMethod() == API_KEY && task.getApikey().isPresent()) {
-                // Authenticate and return data center
-                String domain = task.getApikey().get().split("-")[1];
-                String endpoint = MessageFormat.format(mailchimpEndpoint + "/", domain);
+            catch (JsonProcessingException e) {
+                throw new DataException(e);
+            }
+        }
+        else if (task.getAuthMethod() == API_KEY && task.getApikey().isPresent()) {
+            // Authenticate and return data center
+            if (!task.getApikey().get().contains("-")) {
+                throw new ConfigException("API Key format invalid.");
+            }
+
+            String domain = task.getApikey().get().split("-")[1];
+            String endpoint = MessageFormat.format(mailchimpEndpoint + "/", domain);
+            try {
                 client.sendRequest(endpoint, HttpMethod.GET, task);
                 mailchimpEndpoint = MessageFormat.format(mailchimpEndpoint, domain);
             }
-        }
-        catch (Exception e) {
-            throw new ConfigException("Could not get data center", e);
+            catch (HttpResponseException re) {
+                throw new ConfigException("Your API key may be invalid, or you've attempted to access the wrong datacenter.");
+            }
         }
     }
 
