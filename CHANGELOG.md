@@ -1,3 +1,6 @@
+## 0.3.16 - 2017-08-28
+- Fixed user friendly error message when input invalid api key [#31](https://github.com/treasure-data/embulk-output-mailchimp/pull/31)
+
 ## 0.3.15 - 2017-07-26
 - Add checking exception to retry [#30](https://github.com/treasure-data/embulk-output-mailchimp/pull/30)
 
