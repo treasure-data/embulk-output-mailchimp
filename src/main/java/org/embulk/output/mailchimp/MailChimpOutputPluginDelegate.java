@@ -99,6 +99,10 @@ public class MailChimpOutputPluginDelegate
         @Config("replace_interests")
         @ConfigDefault("true")
         boolean getReplaceInterests();
+
+        @Config("language_column")
+        @ConfigDefault("null")
+        Optional<String> getLanguageColumn();
     }
 
     /**

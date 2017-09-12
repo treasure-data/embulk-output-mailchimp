@@ -236,6 +236,11 @@ public class MailChimpRecordBuffer
                     property.set("interests", buildInterestCategories(task, input));
                 }
 
+                // Update language if exist
+                if (task.getLanguageColumn().isPresent() && !task.getLanguageColumn().get().isEmpty()) {
+                    property.put("language", input.findPath(task.getLanguageColumn().get()).asText());
+                }
+
                 return property;
             }
         };
