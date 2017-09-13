@@ -1,5 +1,10 @@
+dist: precise
 language: java
 jdk:
   - openjdk7
 script:
   - ./gradlew clean checkstyle check jacocoTestReport
+addons:
+  hosts:
+    - example
+  hostname: example
