@@ -1,3 +1,7 @@
+## 0.3.17 - 2017-09-14
+
+- Support language_column option [#32](https://github.com/treasure-data/embulk-output-mailchimp/pull/32) Thanks @gillax
+
 ## 0.3.16 - 2017-08-28
 - Fixed user friendly error message when input invalid api key [#31](https://github.com/treasure-data/embulk-output-mailchimp/pull/31)
 

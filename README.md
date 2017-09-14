@@ -23,6 +23,7 @@ add e-mail to List in MailChimp.
 - **update_existing**: control whether to update members that are already subscribed to the list or to return an error (boolean, default: false)
 - **merge_fields**: Array for additional merge fields/ TAG in MailChimp dashboard (array, optional, default: nil)
 - **grouping_columns**: Array for group names in MailChimp dashboard(array, default: nil)
+- **language_column**: column name for language (string, optional, default: nil)
 - **double_optin**: control whether to send an opt-in confirmation email (boolean, default: true)
 
 ## Example
