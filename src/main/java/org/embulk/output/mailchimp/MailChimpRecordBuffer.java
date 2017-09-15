@@ -46,7 +46,8 @@ public class MailChimpRecordBuffer
         extends RecordBuffer
 {
     private static final Logger LOG = Exec.getLogger(MailChimpRecordBuffer.class);
-    private static final int MAX_RECORD_PER_BATCH_REQUEST = 500;
+    // MailChimp enables max record per batch request about 500, but need to descrease to avoid MailChimp API error servers
+    private static final int MAX_RECORD_PER_BATCH_REQUEST = 100;
     private final MailChimpOutputPluginDelegate.PluginTask task;
     private final MailChimpClient mailChimpClient;
     private final ObjectMapper mapper;
