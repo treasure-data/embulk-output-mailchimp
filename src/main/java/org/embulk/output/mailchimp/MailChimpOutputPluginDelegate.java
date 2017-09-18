@@ -103,6 +103,10 @@ public class MailChimpOutputPluginDelegate
         @Config("language_column")
         @ConfigDefault("null")
         Optional<String> getLanguageColumn();
+
+        @Config("max_records_per_request")
+        @ConfigDefault("500")
+        int getMaxRecordsPerRequest();
     }
 
     /**
