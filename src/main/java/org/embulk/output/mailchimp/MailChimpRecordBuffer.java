@@ -46,7 +46,6 @@ public class MailChimpRecordBuffer
         extends RecordBuffer
 {
     private static final Logger LOG = Exec.getLogger(MailChimpRecordBuffer.class);
-    private static final int MAX_RECORD_PER_BATCH_REQUEST = 500;
     private final MailChimpOutputPluginDelegate.PluginTask task;
     private final MailChimpClient mailChimpClient;
     private final ObjectMapper mapper;
@@ -88,7 +87,7 @@ public class MailChimpRecordBuffer
             totalCount++;
 
             records.add(record);
-            if (requestCount >= MAX_RECORD_PER_BATCH_REQUEST) {
+            if (requestCount >= task.getMaxRecordsPerRequest()) {
                 ObjectNode subcribers = processSubcribers(records, task);
                 ReportResponse reportResponse = mailChimpClient.push(subcribers, task);
 

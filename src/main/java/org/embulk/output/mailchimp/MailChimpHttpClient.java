@@ -1,6 +1,8 @@
 package org.embulk.output.mailchimp;
 
 import com.fasterxml.jackson.core.Base64Variants;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
@@ -31,8 +33,8 @@ public class MailChimpHttpClient
 {
     private static final Logger LOG = Exec.getLogger(MailChimpHttpClient.class);
     private final ObjectMapper jsonMapper = new ObjectMapper()
-            .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false)
-            .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false)
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     /**
      * Instantiates a new Mailchimp http client.
