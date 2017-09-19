@@ -1,3 +1,6 @@
+## 0.3.18 - 2017-09-19
+- Fixed error parsing MailChimp API response JSON when push the large data [#34](https://github.com/treasure-data/embulk-output-mailchimp/pull/34)
+
 ## 0.3.17 - 2017-09-14
 
 - Support language_column option [#32](https://github.com/treasure-data/embulk-output-mailchimp/pull/32) Thanks @gillax
