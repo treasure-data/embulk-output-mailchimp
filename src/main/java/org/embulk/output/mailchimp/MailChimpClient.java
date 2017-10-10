@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -31,6 +32,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +82,14 @@ public class MailChimpClient
                                                task.getListId());
 
         JsonNode response = client.sendRequest(endpoint, HttpMethod.POST, node.toString(), task);
+        client.avoidFlushAPI("Pushing next request");
+
+        if (response instanceof MissingNode) {
+            ReportResponse reportResponse = new ReportResponse();
+            reportResponse.setErrors(new ArrayList<ErrorResponse>());
+            return reportResponse;
+        }
+
         return mapper.treeToValue(response, ReportResponse.class);
     }
 
@@ -153,6 +163,9 @@ public class MailChimpClient
                                                              task.getListId(),
                                                              categoriesResponse.getId());
                 response = client.sendRequest(detailEndpoint, HttpMethod.GET, task);
+
+                // Avoid flush MailChimp API
+                client.avoidFlushAPI("Fetching next category's interests");
                 InterestsResponse interestsResponse = mapper.treeToValue(response, InterestsResponse.class);
                 categories.put(categoriesResponse.getTitle().toLowerCase(),
                                convertInterestCategoryToMap(interestsResponse.getInterests()));
