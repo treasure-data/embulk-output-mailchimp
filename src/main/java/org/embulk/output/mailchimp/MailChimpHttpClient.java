@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -66,6 +67,7 @@ public class MailChimpHttpClient
                         {
                             Request request = client
                                     .newRequest(endpoint)
+                                    .timeout(task.getTimeoutMillis(), TimeUnit.MILLISECONDS)
                                     .accept("application/json")
                                     .method(method);
                             if (method == HttpMethod.POST || method == HttpMethod.PUT) {
