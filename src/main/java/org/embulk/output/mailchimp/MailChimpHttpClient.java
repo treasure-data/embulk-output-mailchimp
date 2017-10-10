@@ -118,7 +118,43 @@ public class MailChimpHttpClient
             return this.jsonMapper.readTree(json);
         }
         catch (IOException ex) {
+            // Try to parse invalid json before throwing exception
+            return parseInvalidJsonString(json);
+        }
+    }
+
+    // Sometimes, the MailChimp API returns invalid JSON when we pushed a large of data. ObjectMapper can not read string json.
+    // So we have to use this method to parse string and build a json string as ReportResponse
+    // E.g invalid json response from MailChimp https://gist.github.com/thangnc/dc94026e4b13b728b7303f402b458b05
+    private JsonNode parseInvalidJsonString(final String json)
+    {
+        int totalCreatedIndex = json.indexOf("\"total_created\"");
+        int totalUpdatedIndex = json.indexOf("\"total_updated\"");
+        int errorCountIndex = json.indexOf("\"error_count\"");
+        int errorsIndex = json.indexOf("\"errors\"");
+
+        StringBuilder validJson = new StringBuilder();
+        validJson.append("{").append(json.substring(errorsIndex, totalCreatedIndex - 1)).append(",");
+        validJson.append(json.substring(totalCreatedIndex, totalCreatedIndex + "\"total_created\"".length() + 2)).append(",");
+        validJson.append(json.substring(totalUpdatedIndex, totalUpdatedIndex + "\"total_updated\"".length() + 2)).append(",");
+        validJson.append(json.substring(errorCountIndex, errorCountIndex + "\"error_count\"".length() + 2)).append("}");
+
+        try {
+            return this.jsonMapper.readTree(validJson.toString());
+        }
+        catch (IOException ex) {
             throw new DataException(ex);
+        }
+    }
+
+    public void avoidFlushAPI(String reason)
+    {
+        try {
+            LOG.info("{} in 5s...", reason);
+            Thread.sleep(5000);
+        }
+        catch (InterruptedException e) {
+            LOG.warn("Failed to sleep: {}", e.getMessage());
         }
     }
 
