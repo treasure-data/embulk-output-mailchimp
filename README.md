@@ -25,6 +25,7 @@ add e-mail to List in MailChimp.
 - **grouping_columns**: Array for group names in MailChimp dashboard(array, default: nil)
 - **language_column**: column name for language (string, optional, default: nil)
 - **double_optin**: control whether to send an opt-in confirmation email (boolean, default: true)
+- **max_records_per_request**: The max records per batch request. MailChimp API enables max records is 500 per batch request (int, default: 500)
 
 ## Example
 

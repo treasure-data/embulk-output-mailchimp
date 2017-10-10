@@ -1,3 +1,6 @@
+## 0.3.19 - 2017-10-10
+- Fixed bug can not parse invalid JSON response and added request timeout to avoid flush MailChimp API [#35](https://github.com/treasure-data/embulk-output-mailchimp/pull/35)
+
 ## 0.3.18 - 2017-09-19
 - Fixed error parsing MailChimp API response JSON when push the large data [#34](https://github.com/treasure-data/embulk-output-mailchimp/pull/34)
 
