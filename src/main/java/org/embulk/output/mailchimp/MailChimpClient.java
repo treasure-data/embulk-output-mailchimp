@@ -185,12 +185,34 @@ public class MailChimpClient
      */
     Map<String, MergeField> extractMergeFieldsFromList(MailChimpOutputPluginDelegate.PluginTask task) throws JsonProcessingException
     {
-        String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/merge-fields",
-                                               task.getListId());
-        JsonNode response = client.sendRequest(endpoint, HttpMethod.GET, task);
-        MergeFields mergeFields = mapper.treeToValue(response,
-                                                     MergeFields.class);
-        return convertMergeFieldToMap(mergeFields.getMergeFields());
+        int count = 100;
+        int offset = 0;
+        int page = 1;
+        boolean hasMore = true;
+        List<MergeField> allMergeFields = new ArrayList<>();
+
+        while (hasMore) {
+            String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/merge-fields?count={1}&offset={2}",
+                                                   task.getListId(),
+                                                   count,
+                                                   offset);
+
+            JsonNode response = client.sendRequest(endpoint, HttpMethod.GET, task);
+            MergeFields mergeFields = mapper.treeToValue(response,
+                                                         MergeFields.class);
+
+            allMergeFields.addAll(mergeFields.getMergeFields());
+
+            if (hasMorePage(mergeFields.getTotalItems(), count, page)) {
+                offset = count;
+                page++;
+            }
+            else {
+                hasMore = false;
+            }
+        }
+
+        return convertMergeFieldToMap(allMergeFields);
     }
 
     private void extractDataCenter(MailChimpOutputPluginDelegate.PluginTask task)
@@ -256,5 +278,11 @@ public class MailChimpClient
         return Maps.uniqueIndex(FluentIterable.from(mergeFieldList)
                                         .toList(),
                                 function);
+    }
+
+    private boolean hasMorePage(final int count, final int pageSize, final int page)
+    {
+        int totalPage = count / pageSize + (count % pageSize > 0 ? 1 : 0);
+        return page < totalPage;
     }
 }
