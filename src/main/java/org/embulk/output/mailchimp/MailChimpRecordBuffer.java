@@ -311,7 +311,7 @@ public class MailChimpRecordBuffer
                 reportResponse = mailChimpClient.push(subscribers, task);
 
                 LOG.info("Done. Response from MailChimp: {} records created, {} records updated, {} records failed. Batch took {} ms ",
-                         1, reportResponse.getTotalCreated(),
+                         reportResponse.getTotalCreated(),
                          reportResponse.getTotalUpdated(),
                          reportResponse.getErrorCount(), System.currentTimeMillis() - startTime);
                 mailChimpClient.handleErrors(reportResponse.getErrors());
