@@ -27,9 +27,12 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.embulk.output.mailchimp.MailChimpOutputPluginDelegate.PluginTask;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
@@ -55,6 +58,8 @@ public class MailChimpRecordBuffer
     private List<JsonNode> records;
     private Map<String, Map<String, InterestResponse>> categories;
     private Map<String, MergeField> availableMergeFields;
+    private List<JsonNode> uniqueRecords;
+    private List<JsonNode> duplicatedRecords;
 
     /**
      * Instantiates a new Mail chimp abstract record buffer.
@@ -71,6 +76,8 @@ public class MailChimpRecordBuffer
                 .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
         this.records = new ArrayList<>();
         this.categories = new HashMap<>();
+        this.uniqueRecords = new ArrayList<>();
+        this.duplicatedRecords = new ArrayList<>();
         this.mailChimpClient = new MailChimpClient(task);
     }
 
@@ -88,20 +95,18 @@ public class MailChimpRecordBuffer
 
             records.add(record);
             if (requestCount >= task.getMaxRecordsPerRequest()) {
-                ObjectNode subcribers = processSubcribers(records, task);
-                ReportResponse reportResponse = mailChimpClient.push(subcribers, task);
+                long startTime = System.currentTimeMillis();
+
+                filterDuplicatedRecords();
+                pushData(startTime);
 
                 if (totalCount % 1000 == 0) {
                     LOG.info("Pushed {} records", totalCount);
                 }
 
-                LOG.info("Response from MailChimp: {} records created, {} records updated, {} records failed",
-                         reportResponse.getTotalCreated(),
-                         reportResponse.getTotalUpdated(),
-                         reportResponse.getErrorCount());
-                mailChimpClient.handleErrors(reportResponse.getErrors());
-
                 records = new ArrayList<>();
+                uniqueRecords = new ArrayList<>();
+                duplicatedRecords = new ArrayList<>();
                 requestCount = 0;
             }
         }
@@ -121,14 +126,12 @@ public class MailChimpRecordBuffer
     {
         try {
             if (records.size() > 0) {
-                ObjectNode subcribers = processSubcribers(records, task);
-                ReportResponse reportResponse = mailChimpClient.push(subcribers, task);
-                LOG.info("Pushed {} records", records.size());
-                LOG.info("Response from MailChimp: {} records created, {} records updated, {} records failed",
-                         reportResponse.getTotalCreated(),
-                         reportResponse.getTotalUpdated(),
-                         reportResponse.getErrorCount());
-                mailChimpClient.handleErrors(reportResponse.getErrors());
+                long startTime = System.currentTimeMillis();
+                filterDuplicatedRecords();
+                pushData(startTime);
+                records = new ArrayList<>();
+                uniqueRecords = new ArrayList<>();
+                duplicatedRecords = new ArrayList<>();
             }
 
             return Exec.newTaskReport().set("pushed", totalCount);
@@ -163,8 +166,6 @@ public class MailChimpRecordBuffer
     private ObjectNode processSubcribers(final List<JsonNode> data, final PluginTask task)
             throws JsonProcessingException
     {
-        LOG.info("Start to process subscriber data");
-
         // Should loop the names and get the id of interest categories.
         // The reason why we put categories validation here because we can not share data between instance.
         categories = mailChimpClient.extractInterestCategoriesByGroupNames(task);
@@ -276,5 +277,45 @@ public class MailChimpRecordBuffer
         }
 
         return interests;
+    }
+
+    private void filterDuplicatedRecords()
+    {
+        Set<String> uniqueEmails = new HashSet<>();
+        for (JsonNode node : records) {
+            if (uniqueEmails.contains(node.findPath(task.getEmailColumn()).asText())) {
+                duplicatedRecords.add(node);
+            }
+            else {
+                uniqueEmails.add(node.findPath(task.getEmailColumn()).asText());
+                uniqueRecords.add(node);
+            }
+        }
+    }
+
+    private void pushData(final long startTime) throws JsonProcessingException
+    {
+        ObjectNode subscribers = processSubcribers(uniqueRecords, task);
+        ReportResponse reportResponse = mailChimpClient.push(subscribers, task);
+
+        LOG.info("Done with {} record(s). Response from MailChimp: {} records created, {} records updated, {} records failed. Batch took {} ms ",
+                 records.size(), reportResponse.getTotalCreated(),
+                 reportResponse.getTotalUpdated(),
+                 reportResponse.getErrorCount(), System.currentTimeMillis() - startTime);
+        mailChimpClient.handleErrors(reportResponse.getErrors());
+
+        if (duplicatedRecords.size() > 0) {
+            LOG.info("Start to process {} duplicated record(s)", duplicatedRecords.size());
+            for (JsonNode duplicatedRecord : duplicatedRecords) {
+                subscribers = processSubcribers(Arrays.asList(duplicatedRecord), task);
+                reportResponse = mailChimpClient.push(subscribers, task);
+
+                LOG.info("Done. Response from MailChimp: {} records created, {} records updated, {} records failed. Batch took {} ms ",
+                         1, reportResponse.getTotalCreated(),
+                         reportResponse.getTotalUpdated(),
+                         reportResponse.getErrorCount(), System.currentTimeMillis() - startTime);
+                mailChimpClient.handleErrors(reportResponse.getErrors());
+            }
+        }
     }
 }

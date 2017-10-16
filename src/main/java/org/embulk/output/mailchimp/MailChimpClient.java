@@ -82,7 +82,7 @@ public class MailChimpClient
                                                task.getListId());
 
         JsonNode response = client.sendRequest(endpoint, HttpMethod.POST, node.toString(), task);
-        client.avoidFlushAPI("Pushing next request");
+        client.avoidFlushAPI("Process next request");
 
         if (response instanceof MissingNode) {
             ReportResponse reportResponse = new ReportResponse();
