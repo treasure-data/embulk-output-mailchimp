@@ -305,6 +305,7 @@ public class MailChimpRecordBuffer
         if (duplicatedRecords.size() > 0) {
             LOG.info("Start to process {} duplicated record(s)", duplicatedRecords.size());
             for (JsonNode duplicatedRecord : duplicatedRecords) {
+                startTime = System.currentTimeMillis();
                 subscribers = processSubcribers(Arrays.asList(duplicatedRecord), task);
                 reportResponse = mailChimpClient.push(subscribers, task);
 
