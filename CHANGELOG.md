@@ -1,3 +1,9 @@
+## 0.3.20 - 2017-10-16
+- Added pagination for interest categories [#39](https://github.com/treasure-data/embulk-output-mailchimp/pull/39)
+- Refactor check list id to avoid confusing when get 404 error [#38](https://github.com/treasure-data/embulk-output-mailchimp/pull/38)
+- Added pagination for merge fields [#37](https://github.com/treasure-data/embulk-output-mailchimp/pull/37)
+- Fixed bug duplicated email in payload JSON [#36](https://github.com/treasure-data/embulk-output-mailchimp/pull/36)
+
 ## 0.3.19 - 2017-10-10
 - Fixed bug can not parse invalid JSON response and added request timeout to avoid flush MailChimp API [#35](https://github.com/treasure-data/embulk-output-mailchimp/pull/35)
 
