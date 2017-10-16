@@ -85,16 +85,13 @@ public class MailChimpHttpClient
                         {
                             int status = response.getStatus();
 
-                            if (status == 404) {
-                                LOG.error("The requested resource could not be found.");
-                            }
-
                             return status == 429 || status / 100 != 4;
                         }
 
                         @Override
                         protected boolean isExceptionToRetry(Exception exception)
                         {
+                            LOG.error("Exception to retry.", exception);
                             // This check is to make sure the exception is retryable, e.g: server not found, internal server error...
                             if (exception instanceof ConfigException || exception instanceof ExecutionException) {
                                 return toRetry((Exception) exception.getCause());
@@ -107,7 +104,7 @@ public class MailChimpHttpClient
             return responseBody != null && !responseBody.isEmpty() ? parseJson(responseBody) : MissingNode.getInstance();
         }
         catch (Exception ex) {
-            LOG.info("Exception occurred while sending request.");
+            LOG.error("Exception occurred while sending request.", ex);
             throw Throwables.propagate(ex);
         }
     }
