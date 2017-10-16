@@ -132,12 +132,32 @@ public class MailChimpClient
         if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
             List<String> interestCategoryNames = task.getGroupingColumns().get();
 
-            String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/interest-categories",
-                                                   task.getListId());
+            int count = 100;
+            int offset = 0;
+            int page = 1;
+            boolean hasMore = true;
+            JsonNode response;
+            List<CategoriesResponse> allCategoriesResponse = new ArrayList<>();
 
-            JsonNode response = client.sendRequest(endpoint, HttpMethod.GET, task);
-            InterestCategoriesResponse interestCategoriesResponse = mapper.treeToValue(response,
-                                                                                       InterestCategoriesResponse.class);
+            while (hasMore) {
+                String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/interest-categories?count={1}&offset={2}",
+                                                       task.getListId(),
+                                                       count,
+                                                       offset);
+
+                response = client.sendRequest(endpoint, HttpMethod.GET, task);
+                InterestCategoriesResponse interestCategoriesResponse = mapper.treeToValue(response,
+                                                                                           InterestCategoriesResponse.class);
+
+                allCategoriesResponse.addAll(interestCategoriesResponse.getCategories());
+                if (hasMorePage(interestCategoriesResponse.getTotalItems(), count, page)) {
+                    offset = count;
+                    page++;
+                }
+                else {
+                    hasMore = false;
+                }
+            }
 
             Function<CategoriesResponse, String> function = new Function<CategoriesResponse, String>()
             {
@@ -150,7 +170,7 @@ public class MailChimpClient
 
             // Transform to a list of available category names and validate with data that user input
             ImmutableList<String> availableCategories = FluentIterable
-                    .from(interestCategoriesResponse.getCategories())
+                    .from(allCategoriesResponse)
                     .transform(function)
                     .toList();
 
@@ -160,7 +180,7 @@ public class MailChimpClient
                 }
             }
 
-            for (CategoriesResponse categoriesResponse : interestCategoriesResponse.getCategories()) {
+            for (CategoriesResponse categoriesResponse : allCategoriesResponse) {
                 String detailEndpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/interest-categories/{1}/interests",
                                                              task.getListId(),
                                                              categoriesResponse.getId());
