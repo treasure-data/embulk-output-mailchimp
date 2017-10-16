@@ -15,6 +15,7 @@ import com.google.common.collect.Maps;
 import org.eclipse.jetty.client.HttpResponseException;
 import org.eclipse.jetty.http.HttpMethod;
 import org.embulk.config.ConfigException;
+import org.embulk.output.mailchimp.MailChimpOutputPluginDelegate.PluginTask;
 import org.embulk.output.mailchimp.helper.MailChimpHelper;
 import org.embulk.output.mailchimp.model.CategoriesResponse;
 import org.embulk.output.mailchimp.model.ErrorResponse;
@@ -56,7 +57,7 @@ public class MailChimpClient
      *
      * @param task the task
      */
-    public MailChimpClient(final MailChimpOutputPluginDelegate.PluginTask task)
+    public MailChimpClient(final PluginTask task)
     {
         mailchimpEndpoint = Joiner.on("/").join("https://{0}.api.mailchimp.com", API_VERSION);
         this.client = new MailChimpHttpClient(task);
@@ -64,6 +65,7 @@ public class MailChimpClient
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
         extractDataCenter(task);
+        findList(task);
     }
 
     /**
@@ -75,7 +77,7 @@ public class MailChimpClient
      * @return the report response
      * @throws JsonProcessingException the json processing exception
      */
-    ReportResponse push(final ObjectNode node, MailChimpOutputPluginDelegate.PluginTask task)
+    ReportResponse push(final ObjectNode node, PluginTask task)
             throws JsonProcessingException
     {
         String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}",
@@ -123,7 +125,7 @@ public class MailChimpClient
      * @return the map
      * @throws JsonProcessingException the json processing exception
      */
-    Map<String, Map<String, InterestResponse>> extractInterestCategoriesByGroupNames(final MailChimpOutputPluginDelegate.PluginTask task)
+    Map<String, Map<String, InterestResponse>> extractInterestCategoriesByGroupNames(final PluginTask task)
             throws JsonProcessingException
     {
         Map<String, Map<String, InterestResponse>> categories = new HashMap<>();
@@ -183,7 +185,7 @@ public class MailChimpClient
      * @return the map
      * @throws JsonProcessingException the json processing exception
      */
-    Map<String, MergeField> extractMergeFieldsFromList(MailChimpOutputPluginDelegate.PluginTask task) throws JsonProcessingException
+    Map<String, MergeField> extractMergeFieldsFromList(PluginTask task) throws JsonProcessingException
     {
         int count = 100;
         int offset = 0;
@@ -215,7 +217,7 @@ public class MailChimpClient
         return convertMergeFieldToMap(allMergeFields);
     }
 
-    private void extractDataCenter(MailChimpOutputPluginDelegate.PluginTask task)
+    private void extractDataCenter(final PluginTask task)
     {
         if (task.getAuthMethod() == OAUTH) {
             // Extract data center from meta data URL
@@ -244,6 +246,18 @@ public class MailChimpClient
             catch (HttpResponseException re) {
                 throw new ConfigException("Your API key may be invalid, or you've attempted to access the wrong datacenter.");
             }
+        }
+    }
+
+    private void findList(final PluginTask task)
+    {
+        String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}",
+                                               task.getListId());
+        try {
+            client.sendRequest(endpoint, HttpMethod.GET, task);
+        }
+        catch (HttpResponseException hre) {
+            throw new ConfigException("The `list id` could not be found.");
         }
     }
 

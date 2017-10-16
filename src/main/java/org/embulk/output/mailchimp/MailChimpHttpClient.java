@@ -86,8 +86,7 @@ public class MailChimpHttpClient
                             int status = response.getStatus();
 
                             if (status == 404) {
-                                LOG.error("Exception occurred while sending request: {}", response.getReason());
-                                throw new ConfigException("The `list id` could not be found.");
+                                LOG.error("The requested resource could not be found.");
                             }
 
                             return status == 429 || status / 100 != 4;
