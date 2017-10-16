@@ -95,10 +95,8 @@ public class MailChimpRecordBuffer
 
             records.add(record);
             if (requestCount >= task.getMaxRecordsPerRequest()) {
-                long startTime = System.currentTimeMillis();
-
                 filterDuplicatedRecords();
-                pushData(startTime);
+                pushData();
 
                 if (totalCount % 1000 == 0) {
                     LOG.info("Pushed {} records", totalCount);
@@ -126,9 +124,8 @@ public class MailChimpRecordBuffer
     {
         try {
             if (records.size() > 0) {
-                long startTime = System.currentTimeMillis();
                 filterDuplicatedRecords();
-                pushData(startTime);
+                pushData();
                 records = new ArrayList<>();
                 uniqueRecords = new ArrayList<>();
                 duplicatedRecords = new ArrayList<>();
@@ -293,8 +290,9 @@ public class MailChimpRecordBuffer
         }
     }
 
-    private void pushData(final long startTime) throws JsonProcessingException
+    private void pushData() throws JsonProcessingException
     {
+        long startTime = System.currentTimeMillis();
         ObjectNode subscribers = processSubcribers(uniqueRecords, task);
         ReportResponse reportResponse = mailChimpClient.push(subscribers, task);
 
