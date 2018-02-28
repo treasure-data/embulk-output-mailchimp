@@ -150,7 +150,7 @@ public class MailChimpRecordBuffer
     @Override
     public void close()
     {
-        // Do not implement
+        mailChimpClient.closeResource();
     }
 
     /**
@@ -165,10 +165,14 @@ public class MailChimpRecordBuffer
     {
         // Should loop the names and get the id of interest categories.
         // The reason why we put categories validation here because we can not share data between instance.
-        categories = mailChimpClient.extractInterestCategoriesByGroupNames(task);
+        if (categories == null) {
+            categories = mailChimpClient.extractInterestCategoriesByGroupNames(task);
+        }
 
         // Extract merge fields detail
-        availableMergeFields = mailChimpClient.extractMergeFieldsFromList(task);
+        if (availableMergeFields == null) {
+            availableMergeFields = mailChimpClient.extractMergeFieldsFromList(task);
+        }
 
         // Required merge fields
         Map<String, String> map = new HashMap<>();
@@ -208,7 +212,7 @@ public class MailChimpRecordBuffer
                             String value = input.hasNonNull(column.getName()) ? input.findValue(column.getName()).asText() : "";
 
                             // Try to convert to Json from string with the merge field's type is address
-                            if (availableMergeFields.get(column.getName()).getType()
+                            if (availableMergeFields.get(column.getName().toLowerCase()).getType()
                                     .equals(MergeField.MergeFieldType.ADDRESS.getType())) {
                                 JsonNode addressNode = toJsonNode(value);
                                 if (addressNode instanceof NullNode) {
@@ -243,31 +247,32 @@ public class MailChimpRecordBuffer
         };
     }
 
-    private ObjectNode buildInterestCategories(final MailChimpOutputPluginDelegate.PluginTask task,
-                                               final JsonNode input)
+    private ObjectNode buildInterestCategories(final PluginTask task, final JsonNode input)
     {
         ObjectNode interests = JsonNodeFactory.instance.objectNode();
 
-        for (String category : task.getGroupingColumns().get()) {
-            String inputValue = input.findValue(category).asText();
-            List<String> interestValues = fromCommaSeparatedString(inputValue);
-            Map<String, InterestResponse> availableCategories = categories.get(category);
+        if (task.getGroupingColumns().isPresent()) {
+            for (String category : task.getGroupingColumns().get()) {
+                String inputValue = input.findValue(category).asText();
+                List<String> interestValues = fromCommaSeparatedString(inputValue);
+                Map<String, InterestResponse> availableCategories = categories.get(category);
 
-            // Only update user-predefined categories if replace interests != true
-            if (!task.getReplaceInterests()) {
-                for (String interestValue : interestValues) {
-                    if (availableCategories.get(interestValue) != null) {
-                        interests.put(availableCategories.get(interestValue).getId(), true);
+                // Only update user-predefined categories if replace interests != true
+                if (!task.getReplaceInterests()) {
+                    for (String interestValue : interestValues) {
+                        if (availableCategories.get(interestValue) != null) {
+                            interests.put(availableCategories.get(interestValue).getId(), true);
+                        }
                     }
-                }
-            } // Otherwise, force update all categories include user-predefined categories
-            else if (task.getReplaceInterests()) {
-                for (String availableCategory : availableCategories.keySet()) {
-                    if (interestValues.contains(availableCategory)) {
-                        interests.put(availableCategories.get(availableCategory).getId(), true);
-                    }
-                    else {
-                        interests.put(availableCategories.get(availableCategory).getId(), false);
+                } // Otherwise, force update all categories include user-predefined categories
+                else if (task.getReplaceInterests()) {
+                    for (String availableCategory : availableCategories.keySet()) {
+                        if (interestValues.contains(availableCategory)) {
+                            interests.put(availableCategories.get(availableCategory).getId(), true);
+                        }
+                        else {
+                            interests.put(availableCategories.get(availableCategory).getId(), false);
+                        }
                     }
                 }
             }

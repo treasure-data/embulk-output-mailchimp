@@ -129,6 +129,10 @@ public class MailChimpOutputPluginDelegate
             if (!task.getApikey().isPresent() || isNullOrEmpty(task.getApikey().get())) {
                 throw new ConfigException("'apikey' is required when auth_method is 'api_key'");
             }
+
+            if (!task.getApikey().get().contains("-")) {
+                throw new ConfigException("apikey's format invalid.");
+            }
         }
 
         if (isNullOrEmpty(task.getListId())) {
