@@ -1,3 +1,6 @@
+## 0.3.21 - 2018-03-02
+- Refactor code to improve performance and fix NPE with merge fields that contain case sensitive [#40](https://github.com/treasure-data/embulk-output-mailchimp/pull/40)
+
 ## 0.3.20 - 2017-10-16
 - Added pagination for interest categories [#39](https://github.com/treasure-data/embulk-output-mailchimp/pull/39)
 - Refactor check list id to avoid confusing when get 404 error [#38](https://github.com/treasure-data/embulk-output-mailchimp/pull/38)
