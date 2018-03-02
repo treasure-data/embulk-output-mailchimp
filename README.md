@@ -52,5 +52,5 @@ out:
 ## Build
 
 ```
-$ ./gradlew package
+$ ./gradlew gem
 ```
