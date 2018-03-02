@@ -107,6 +107,10 @@ public class MailChimpOutputPluginDelegate
         @Config("max_records_per_request")
         @ConfigDefault("500")
         int getMaxRecordsPerRequest();
+
+        @Config("sleep_between_requests_millis")
+        @ConfigDefault("3000")
+        int getSleepBetweenRequestsMillis();
     }
 
     /**

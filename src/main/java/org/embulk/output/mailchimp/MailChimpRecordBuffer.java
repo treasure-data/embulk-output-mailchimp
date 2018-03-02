@@ -15,6 +15,7 @@ import org.embulk.base.restclient.jackson.JacksonServiceRecord;
 import org.embulk.base.restclient.record.RecordBuffer;
 import org.embulk.base.restclient.record.ServiceRecord;
 import org.embulk.config.TaskReport;
+import org.embulk.output.mailchimp.helper.MailChimpRetryable;
 import org.embulk.output.mailchimp.model.AddressMergeFieldAttribute;
 import org.embulk.output.mailchimp.model.InterestResponse;
 import org.embulk.output.mailchimp.model.MergeField;
@@ -150,7 +151,7 @@ public class MailChimpRecordBuffer
     @Override
     public void close()
     {
-        mailChimpClient.closeResource();
+//      // Do not close here
     }
 
     /**
@@ -306,6 +307,8 @@ public class MailChimpRecordBuffer
                  reportResponse.getTotalUpdated(),
                  reportResponse.getErrorCount(), System.currentTimeMillis() - startTime);
         mailChimpClient.handleErrors(reportResponse.getErrors());
+
+        mailChimpClient.avoidFloodAPI("Process next request", task.getSleepBetweenRequestsMillis());
 
         if (duplicatedRecords.size() > 0) {
             LOG.info("Start to process {} duplicated record(s)", duplicatedRecords.size());

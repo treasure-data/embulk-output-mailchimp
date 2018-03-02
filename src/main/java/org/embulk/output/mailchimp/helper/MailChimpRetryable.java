@@ -38,7 +38,7 @@ public class MailChimpRetryable implements AutoCloseable
     private static final String API_VERSION = "3.0";
     private final Jetty92RetryHelper retryHelper;
     private final PluginTask pluginTask;
-    private TokenHolder tokenHolder;
+    private static TokenHolder tokenHolder;
     protected StringJsonParser jsonParser = new StringJsonParser();
     private String authorizationHeader;
 
