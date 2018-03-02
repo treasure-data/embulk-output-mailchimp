@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.Base64Variants;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.HttpResponseException;
 import org.eclipse.jetty.client.api.ContentResponse;
@@ -193,8 +192,6 @@ public class MailChimpRetryable implements AutoCloseable
 
         throw new ConfigException("Not supported auth method");
     }
-
-
 }
 
 class TokenHolder

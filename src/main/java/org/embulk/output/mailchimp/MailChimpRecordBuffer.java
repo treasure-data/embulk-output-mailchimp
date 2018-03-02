@@ -15,7 +15,6 @@ import org.embulk.base.restclient.jackson.JacksonServiceRecord;
 import org.embulk.base.restclient.record.RecordBuffer;
 import org.embulk.base.restclient.record.ServiceRecord;
 import org.embulk.config.TaskReport;
-import org.embulk.output.mailchimp.helper.MailChimpRetryable;
 import org.embulk.output.mailchimp.model.AddressMergeFieldAttribute;
 import org.embulk.output.mailchimp.model.InterestResponse;
 import org.embulk.output.mailchimp.model.MergeField;
