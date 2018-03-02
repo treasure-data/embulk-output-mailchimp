@@ -26,6 +26,7 @@ add e-mail to List in MailChimp.
 - **language_column**: column name for language (string, optional, default: nil)
 - **double_optin**: control whether to send an opt-in confirmation email (boolean, default: true)
 - **max_records_per_request**: The max records per batch request. MailChimp API enables max records is 500 per batch request (int, default: 500)
+- **sleep_between_requests_millis**: The time to sleep between requests to avoid flood MailChimp API (int, default: 3000)
 
 ## Example
 
@@ -51,5 +52,5 @@ out:
 ## Build
 
 ```
-$ rake
+$ ./gradlew gem
 ```

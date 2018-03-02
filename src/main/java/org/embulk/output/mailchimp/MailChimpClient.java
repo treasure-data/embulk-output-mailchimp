@@ -5,18 +5,17 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
-import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import org.eclipse.jetty.client.HttpResponseException;
-import org.eclipse.jetty.http.HttpMethod;
+import org.embulk.base.restclient.jackson.StringJsonParser;
 import org.embulk.config.ConfigException;
 import org.embulk.output.mailchimp.MailChimpOutputPluginDelegate.PluginTask;
 import org.embulk.output.mailchimp.helper.MailChimpHelper;
+import org.embulk.output.mailchimp.helper.MailChimpRetryable;
 import org.embulk.output.mailchimp.model.CategoriesResponse;
 import org.embulk.output.mailchimp.model.ErrorResponse;
 import org.embulk.output.mailchimp.model.InterestCategoriesResponse;
@@ -24,7 +23,6 @@ import org.embulk.output.mailchimp.model.InterestResponse;
 import org.embulk.output.mailchimp.model.InterestsResponse;
 import org.embulk.output.mailchimp.model.MergeField;
 import org.embulk.output.mailchimp.model.MergeFields;
-import org.embulk.output.mailchimp.model.MetaDataResponse;
 import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
@@ -38,19 +36,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.embulk.output.mailchimp.model.AuthMethod.API_KEY;
-import static org.embulk.output.mailchimp.model.AuthMethod.OAUTH;
-
 /**
  * Created by thangnc on 4/25/17.
  */
 public class MailChimpClient
 {
     private static final Logger LOG = Exec.getLogger(MailChimpClient.class);
-    private static final String API_VERSION = "3.0";
-    private static String mailchimpEndpoint;
-    private MailChimpHttpClient client;
-    private final ObjectMapper mapper;
+    private final ObjectMapper mapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
+    private StringJsonParser jsonParser = new StringJsonParser();
 
     /**
      * Instantiates a new Mail chimp client.
@@ -59,12 +54,6 @@ public class MailChimpClient
      */
     public MailChimpClient(final PluginTask task)
     {
-        mailchimpEndpoint = Joiner.on("/").join("https://{0}.api.mailchimp.com", API_VERSION);
-        this.client = new MailChimpHttpClient(task);
-        this.mapper = new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
-        extractDataCenter(task);
         findList(task);
     }
 
@@ -75,24 +64,19 @@ public class MailChimpClient
      * @param node the data
      * @param task the task
      * @return the report response
-     * @throws JsonProcessingException the json processing exception
      */
-    ReportResponse push(final ObjectNode node, PluginTask task)
-            throws JsonProcessingException
+    public ReportResponse push(final ObjectNode node, PluginTask task) throws JsonProcessingException
     {
-        String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}",
-                                               task.getListId());
+        try (MailChimpRetryable retryable = new MailChimpRetryable(task)) {
+            String response = retryable.post(MessageFormat.format("/lists/{0}", task.getListId()),
+                                             "application/json;utf-8",
+                                             node.toString());
+            if (response != null && !response.isEmpty()) {
+                return mapper.treeToValue(jsonParser.parseJsonObject(response), ReportResponse.class);
+            }
 
-        JsonNode response = client.sendRequest(endpoint, HttpMethod.POST, node.toString(), task);
-        client.avoidFlushAPI("Process next request");
-
-        if (response instanceof MissingNode) {
-            ReportResponse reportResponse = new ReportResponse();
-            reportResponse.setErrors(new ArrayList<ErrorResponse>());
-            return reportResponse;
+            throw new DataException("The json data in response were broken.");
         }
-
-        return mapper.treeToValue(response, ReportResponse.class);
     }
 
     /**
@@ -100,7 +84,7 @@ public class MailChimpClient
      *
      * @param errorResponses the error responses
      */
-    void handleErrors(List<ErrorResponse> errorResponses)
+    public void handleErrors(List<ErrorResponse> errorResponses)
     {
         if (!errorResponses.isEmpty()) {
             StringBuilder errorMessage = new StringBuilder();
@@ -125,76 +109,77 @@ public class MailChimpClient
      * @return the map
      * @throws JsonProcessingException the json processing exception
      */
-    Map<String, Map<String, InterestResponse>> extractInterestCategoriesByGroupNames(final PluginTask task)
+    public Map<String, Map<String, InterestResponse>> extractInterestCategoriesByGroupNames(final PluginTask task)
             throws JsonProcessingException
     {
-        Map<String, Map<String, InterestResponse>> categories = new HashMap<>();
-        if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
-            List<String> interestCategoryNames = task.getGroupingColumns().get();
+        try (MailChimpRetryable retryable = new MailChimpRetryable(task)) {
+            Map<String, Map<String, InterestResponse>> categories = new HashMap<>();
+            if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
+                List<String> interestCategoryNames = task.getGroupingColumns().get();
 
-            int count = 100;
-            int offset = 0;
-            int page = 1;
-            boolean hasMore = true;
-            JsonNode response;
-            List<CategoriesResponse> allCategoriesResponse = new ArrayList<>();
+                int count = 100;
+                int offset = 0;
+                int page = 1;
+                boolean hasMore = true;
+                JsonNode response;
+                List<CategoriesResponse> allCategoriesResponse = new ArrayList<>();
 
-            while (hasMore) {
-                String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/interest-categories?count={1}&offset={2}",
+                while (hasMore) {
+                    String path = MessageFormat.format("/lists/{0}/interest-categories?count={1}&offset={2}",
                                                        task.getListId(),
                                                        count,
                                                        offset);
+                    response = jsonParser.parseJsonObject(retryable.get(path));
+                    InterestCategoriesResponse interestCategoriesResponse = mapper.treeToValue(response,
+                                                                                               InterestCategoriesResponse.class);
 
-                response = client.sendRequest(endpoint, HttpMethod.GET, task);
-                InterestCategoriesResponse interestCategoriesResponse = mapper.treeToValue(response,
-                                                                                           InterestCategoriesResponse.class);
-
-                allCategoriesResponse.addAll(interestCategoriesResponse.getCategories());
-                if (hasMorePage(interestCategoriesResponse.getTotalItems(), count, page)) {
-                    offset = count;
-                    page++;
+                    allCategoriesResponse.addAll(interestCategoriesResponse.getCategories());
+                    if (hasMorePage(interestCategoriesResponse.getTotalItems(), count, page)) {
+                        offset = count;
+                        page++;
+                    }
+                    else {
+                        hasMore = false;
+                    }
                 }
-                else {
-                    hasMore = false;
-                }
-            }
 
-            Function<CategoriesResponse, String> function = new Function<CategoriesResponse, String>()
-            {
-                @Override
-                public String apply(CategoriesResponse input)
+                Function<CategoriesResponse, String> function = new Function<CategoriesResponse, String>()
                 {
-                    return input.getTitle().toLowerCase();
+                    @Override
+                    public String apply(CategoriesResponse input)
+                    {
+                        return input.getTitle().toLowerCase();
+                    }
+                };
+
+                // Transform to a list of available category names and validate with data that user input
+                ImmutableList<String> availableCategories = FluentIterable
+                        .from(allCategoriesResponse)
+                        .transform(function)
+                        .toList();
+
+                for (String category : interestCategoryNames) {
+                    if (!availableCategories.contains(category)) {
+                        throw new ConfigException("Invalid interest category name: '" + category + "'");
+                    }
                 }
-            };
 
-            // Transform to a list of available category names and validate with data that user input
-            ImmutableList<String> availableCategories = FluentIterable
-                    .from(allCategoriesResponse)
-                    .transform(function)
-                    .toList();
-
-            for (String category : interestCategoryNames) {
-                if (!availableCategories.contains(category)) {
-                    throw new ConfigException("Invalid interest category name: '" + category + "'");
-                }
-            }
-
-            for (CategoriesResponse categoriesResponse : allCategoriesResponse) {
-                String detailEndpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/interest-categories/{1}/interests",
+                for (CategoriesResponse categoriesResponse : allCategoriesResponse) {
+                    String detailPath = MessageFormat.format("/lists/{0}/interest-categories/{1}/interests",
                                                              task.getListId(),
                                                              categoriesResponse.getId());
-                response = client.sendRequest(detailEndpoint, HttpMethod.GET, task);
+                    response = jsonParser.parseJsonObject(retryable.get(detailPath));
 
-                // Avoid flush MailChimp API
-                client.avoidFlushAPI("Fetching next category's interests");
-                InterestsResponse interestsResponse = mapper.treeToValue(response, InterestsResponse.class);
-                categories.put(categoriesResponse.getTitle().toLowerCase(),
-                               convertInterestCategoryToMap(interestsResponse.getInterests()));
+                    // Avoid flood MailChimp API
+                    avoidFloodAPI("Fetching next category's interests", task.getSleepBetweenRequestsMillis());
+                    InterestsResponse interestsResponse = mapper.treeToValue(response, InterestsResponse.class);
+                    categories.put(categoriesResponse.getTitle().toLowerCase(),
+                                   convertInterestCategoryToMap(interestsResponse.getInterests()));
+                }
             }
-        }
 
-        return categories;
+            return categories;
+        }
     }
 
     /**
@@ -205,76 +190,45 @@ public class MailChimpClient
      * @return the map
      * @throws JsonProcessingException the json processing exception
      */
-    Map<String, MergeField> extractMergeFieldsFromList(PluginTask task) throws JsonProcessingException
+    public Map<String, MergeField> extractMergeFieldsFromList(PluginTask task) throws JsonProcessingException
     {
-        int count = 100;
-        int offset = 0;
-        int page = 1;
-        boolean hasMore = true;
-        List<MergeField> allMergeFields = new ArrayList<>();
+        try (MailChimpRetryable retryable = new MailChimpRetryable(task)) {
+            int count = 100;
+            int offset = 0;
+            int page = 1;
+            boolean hasMore = true;
+            List<MergeField> allMergeFields = new ArrayList<>();
 
-        while (hasMore) {
-            String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}/merge-fields?count={1}&offset={2}",
+            while (hasMore) {
+                String path = MessageFormat.format("/lists/{0}/merge-fields?count={1}&offset={2}",
                                                    task.getListId(),
                                                    count,
                                                    offset);
 
-            JsonNode response = client.sendRequest(endpoint, HttpMethod.GET, task);
-            MergeFields mergeFields = mapper.treeToValue(response,
-                                                         MergeFields.class);
+                JsonNode response = jsonParser.parseJsonObject(retryable.get(path));
+                MergeFields mergeFields = mapper.treeToValue(response,
+                                                             MergeFields.class);
 
-            allMergeFields.addAll(mergeFields.getMergeFields());
+                allMergeFields.addAll(mergeFields.getMergeFields());
 
-            if (hasMorePage(mergeFields.getTotalItems(), count, page)) {
-                offset = count;
-                page++;
-            }
-            else {
-                hasMore = false;
-            }
-        }
-
-        return convertMergeFieldToMap(allMergeFields);
-    }
-
-    private void extractDataCenter(final PluginTask task)
-    {
-        if (task.getAuthMethod() == OAUTH) {
-            // Extract data center from meta data URL
-            JsonNode response = client.sendRequest("https://login.mailchimp.com/oauth2/metadata", HttpMethod.GET, task);
-            MetaDataResponse metaDataResponse;
-            try {
-                metaDataResponse = mapper.treeToValue(response, MetaDataResponse.class);
-                mailchimpEndpoint = MessageFormat.format(mailchimpEndpoint, metaDataResponse.getDc());
-            }
-            catch (JsonProcessingException e) {
-                throw new DataException(e);
-            }
-        }
-        else if (task.getAuthMethod() == API_KEY && task.getApikey().isPresent()) {
-            // Authenticate and return data center
-            if (!task.getApikey().get().contains("-")) {
-                throw new ConfigException("API Key format invalid.");
+                if (hasMorePage(mergeFields.getTotalItems(), count, page)) {
+                    offset = count;
+                    page++;
+                }
+                else {
+                    hasMore = false;
+                }
             }
 
-            String domain = task.getApikey().get().split("-")[1];
-            String endpoint = MessageFormat.format(mailchimpEndpoint + "/", domain);
-            try {
-                client.sendRequest(endpoint, HttpMethod.GET, task);
-                mailchimpEndpoint = MessageFormat.format(mailchimpEndpoint, domain);
-            }
-            catch (HttpResponseException re) {
-                throw new ConfigException("Your API key may be invalid, or you've attempted to access the wrong datacenter.");
-            }
+            return convertMergeFieldToMap(allMergeFields);
         }
     }
 
     private void findList(final PluginTask task)
     {
-        String endpoint = MessageFormat.format(mailchimpEndpoint + "/lists/{0}",
-                                               task.getListId());
-        try {
-            client.sendRequest(endpoint, HttpMethod.GET, task);
+        try (MailChimpRetryable retryable = new MailChimpRetryable(task)) {
+            jsonParser.parseJsonObject(retryable.get(MessageFormat.format("/lists/{0}",
+                                                                          task.getListId())));
         }
         catch (HttpResponseException hre) {
             throw new ConfigException("The `list id` could not be found.");
@@ -318,5 +272,16 @@ public class MailChimpClient
     {
         int totalPage = count / pageSize + (count % pageSize > 0 ? 1 : 0);
         return page < totalPage;
+    }
+
+    public void avoidFloodAPI(final String reason, final long millis)
+    {
+        try {
+            LOG.info("{} in {}ms...", reason, millis);
+            Thread.sleep(millis);
+        }
+        catch (InterruptedException e) {
+            LOG.warn("Failed to sleep: {}", e.getMessage());
+        }
     }
 }

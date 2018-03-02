@@ -107,6 +107,10 @@ public class MailChimpOutputPluginDelegate
         @Config("max_records_per_request")
         @ConfigDefault("500")
         int getMaxRecordsPerRequest();
+
+        @Config("sleep_between_requests_millis")
+        @ConfigDefault("3000")
+        int getSleepBetweenRequestsMillis();
     }
 
     /**
@@ -128,6 +132,10 @@ public class MailChimpOutputPluginDelegate
         else if (task.getAuthMethod() == AuthMethod.API_KEY) {
             if (!task.getApikey().isPresent() || isNullOrEmpty(task.getApikey().get())) {
                 throw new ConfigException("'apikey' is required when auth_method is 'api_key'");
+            }
+
+            if (!task.getApikey().get().contains("-")) {
+                throw new ConfigException("apikey's format invalid.");
             }
         }
 
