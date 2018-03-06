@@ -75,7 +75,6 @@ public class MailChimpRecordBuffer
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
         this.records = new ArrayList<>();
-        this.categories = new HashMap<>();
         this.uniqueRecords = new ArrayList<>();
         this.duplicatedRecords = new ArrayList<>();
         this.mailChimpClient = new MailChimpClient(task);
