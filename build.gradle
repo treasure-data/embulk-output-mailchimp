@@ -18,7 +18,7 @@ configurations {
     provided
 }
 
-version = "0.3.22.alpha.1"
+version = "0.3.22.alpha"
 
 sourceCompatibility = 1.7
 targetCompatibility = 1.7

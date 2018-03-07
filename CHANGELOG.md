@@ -1,3 +1,6 @@
+## 0.3.22 - 2018-03-07
+- Fixed bug NPE when checking interest categories [#41](https://github.com/treasure-data/embulk-output-mailchimp/pull/41)
+
 ## 0.3.21 - 2018-03-02
 - Refactor code to improve performance and fix NPE with merge fields that contain case sensitive [#40](https://github.com/treasure-data/embulk-output-mailchimp/pull/40)
 
