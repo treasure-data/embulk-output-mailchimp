@@ -1,9 +1,6 @@
 package org.embulk.output.mailchimp.helper;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
@@ -15,7 +12,6 @@ import org.embulk.output.mailchimp.model.AddressMergeFieldAttribute;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
@@ -87,25 +83,6 @@ public final class MailChimpHelper
     {
         Iterable<String> split = Splitter.on(",").omitEmptyStrings().trimResults().split(string);
         return Lists.newArrayList(split);
-    }
-
-    /**
-     * TODO: td-worker automatically converts Presto json type to Embulk string type. This is wordaround to convert String to JsonNode
-     *
-     * @param string the string
-     * @return the json node
-     */
-    public static JsonNode toJsonNode(final String string)
-    {
-        final ObjectMapper mapper = new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);
-        try {
-            return mapper.readTree(string);
-        }
-        catch (IOException e) {
-            return JsonNodeFactory.instance.nullNode();
-        }
     }
 
     /**

@@ -2,7 +2,6 @@ package org.embulk.output.mailchimp;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Multimap;
 import org.embulk.output.mailchimp.helper.MailChimpHelper;
@@ -17,7 +16,6 @@ import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseIns
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.extractMemberStatus;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.maskEmail;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.orderJsonNode;
-import static org.embulk.output.mailchimp.helper.MailChimpHelper.toJsonNode;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -70,29 +68,18 @@ public class TestMailChimpHelper
     }
 
     @Test
-    public void test_toJsonNode_validJsonString()
+    public void test_orderJsonNodeForJsonColumn()
     {
-        String given = "{\"addr1\":\"1234\",\"city\":\"mountain view\",\"country\":\"US\",\"state\":\"CA\",\"zip\":\"95869\"}";
-        String expect = "US";
-
-        assertEquals("Should be Json", ObjectNode.class, toJsonNode(given).getClass());
-        assertEquals("Should have attribute `country`", expect, toJsonNode(given).get("country").asText());
-    }
-
-    @Test
-    public void test_toJsonNode_invalidJSonString()
-    {
-        assertEquals("Should be NullNode", NullNode.class, toJsonNode("abc").getClass());
-    }
-
-    @Test
-    public void test_orderJsonNode()
-    {
-        String given = "{\"addr1\":\"1234\",\"city\":\"mountain view\",\"country\":\"US\",\"state\":\"CA\",\"zip\":\"95869\"}";
+        ObjectNode given = JsonNodeFactory.instance.objectNode();
+        given.put("state", "CA");
+        given.put("addr1", "1234");
+        given.put("city", "mountain view");
+        given.put("country", "US");
+        given.put("zip", "95869");
         AddressMergeFieldAttribute[] attributes = AddressMergeFieldAttribute.values();
 
         String expect = "{\"addr1\":\"1234\",\"addr2\":\"\",\"city\":\"mountain view\",\"state\":\"CA\",\"zip\":\"95869\",\"country\":\"US\"}";
-        assertEquals("Should be JSON", ObjectNode.class, orderJsonNode(toJsonNode(given), attributes).getClass());
-        assertEquals("Should be match", expect, orderJsonNode(toJsonNode(given), attributes).toString());
+        assertEquals("Should be JSON", ObjectNode.class, orderJsonNode(given, attributes).getClass());
+        assertEquals("Should be match", expect, orderJsonNode(given, attributes).toString());
     }
 }

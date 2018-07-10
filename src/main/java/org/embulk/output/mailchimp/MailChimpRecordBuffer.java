@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
@@ -38,7 +37,6 @@ import static org.embulk.output.mailchimp.MailChimpOutputPluginDelegate.PluginTa
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.fromCommaSeparatedString;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.orderJsonNode;
-import static org.embulk.output.mailchimp.helper.MailChimpHelper.toJsonNode;
 import static org.embulk.output.mailchimp.model.MemberStatus.PENDING;
 import static org.embulk.output.mailchimp.model.MemberStatus.SUBSCRIBED;
 
@@ -210,17 +208,10 @@ public class MailChimpRecordBuffer
                         if (!"".equals(containsCaseInsensitive(column.getName(), task.getMergeFields().get()))) {
                             String value = input.hasNonNull(column.getName()) ? input.findValue(column.getName()).asText() : "";
 
-                            // Try to convert to Json from string with the merge field's type is address
-                            if (availableMergeFields.get(column.getName().toLowerCase()).getType()
+                            if (availableMergeFields.get(column.getName().toLowerCase()) != null && availableMergeFields.get(column.getName().toLowerCase()).getType()
                                     .equals(MergeField.MergeFieldType.ADDRESS.getType())) {
-                                JsonNode addressNode = toJsonNode(value);
-                                if (addressNode instanceof NullNode) {
-                                    mergeFields.put(column.getName().toUpperCase(), value);
-                                }
-                                else {
-                                    mergeFields.set(column.getName().toUpperCase(),
-                                                    orderJsonNode(addressNode, AddressMergeFieldAttribute.values()));
-                                }
+                                mergeFields.set(column.getName().toUpperCase(),
+                                        orderJsonNode(input.findValue(column.getName()), AddressMergeFieldAttribute.values()));
                             }
                             else {
                                 mergeFields.put(column.getName().toUpperCase(), value);
