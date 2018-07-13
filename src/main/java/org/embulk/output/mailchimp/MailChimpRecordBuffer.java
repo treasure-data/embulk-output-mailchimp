@@ -208,7 +208,7 @@ public class MailChimpRecordBuffer
                         if (!"".equals(containsCaseInsensitive(column.getName(), task.getMergeFields().get()))) {
                             String value = input.hasNonNull(column.getName()) ? input.findValue(column.getName()).asText() : "";
 
-                            if (availableMergeFields.get(column.getName().toLowerCase()) != null && availableMergeFields.get(column.getName().toLowerCase()).getType()
+                            if (availableMergeFields.containsKey(column.getName().toLowerCase()) && availableMergeFields.get(column.getName().toLowerCase()).getType()
                                     .equals(MergeField.MergeFieldType.ADDRESS.getType())) {
                                 mergeFields.set(column.getName().toUpperCase(),
                                         orderJsonNode(input.findValue(column.getName()), AddressMergeFieldAttribute.values()));
