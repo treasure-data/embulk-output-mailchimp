@@ -96,6 +96,10 @@ public class MailChimpOutputPluginDelegate
         @ConfigDefault("false")
         boolean getUpdateExisting();
 
+        @Config("atomic_upsert")
+        @ConfigDefault("false")
+        boolean getAtomicUpsert();
+
         @Config("replace_interests")
         @ConfigDefault("true")
         boolean getReplaceInterests();

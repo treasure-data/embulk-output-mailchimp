@@ -54,6 +54,7 @@ public class MailChimpRecordBuffer
     private final ObjectMapper mapper;
     private final Schema schema;
     private int requestCount;
+    private int errorCount;
     private long totalCount;
     private List<JsonNode> records;
     private Map<String, Map<String, InterestResponse>> categories;
@@ -129,7 +130,12 @@ public class MailChimpRecordBuffer
                 uniqueRecords = new ArrayList<>();
                 duplicatedRecords = new ArrayList<>();
             }
-
+            // When atomic upsert is true, client expects all records are done properly.
+            if(task.getAtomicUpsert() && errorCount > 0)
+            {
+                LOG.info("Job requires atomic operation for all records. And there was error in processing => Error as status");
+                throw Throwables.propagate(new DataException("Some records are not properly processed at MailChimp. See log for detail"));
+            }
             return Exec.newTaskReport().set("pushed", totalCount);
         }
         catch (JsonProcessingException jpe) {
@@ -304,6 +310,7 @@ public class MailChimpRecordBuffer
                  records.size(), reportResponse.getTotalCreated(),
                  reportResponse.getTotalUpdated(),
                  reportResponse.getErrorCount(), System.currentTimeMillis() - startTime);
+        errorCount += reportResponse.getErrors().size();
         mailChimpClient.handleErrors(reportResponse.getErrors());
 
         mailChimpClient.avoidFloodAPI("Process next request", task.getSleepBetweenRequestsMillis());
