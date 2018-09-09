@@ -1,3 +1,6 @@
+## 0.3.23 - 2018-09-12
+- Introduce an option to fail the job when there is an error returning from Mailchimp. Previous versions marked the job as success with
+detail error in log
 ## 0.3.22 - 2018-03-07
 - Fixed bug NPE when checking interest categories [#41](https://github.com/treasure-data/embulk-output-mailchimp/pull/41)
 

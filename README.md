@@ -25,6 +25,7 @@ add e-mail to List in MailChimp.
 - **grouping_columns**: Array for group names in MailChimp dashboard(array, default: nil)
 - **language_column**: column name for language (string, optional, default: nil)
 - **double_optin**: control whether to send an opt-in confirmation email (boolean, default: true)
+- **atomic_upsert** : Control the atomicity for the job. Job will be marked as success only when there is no error from Mailchimp. Default as false.
 - **max_records_per_request**: The max records per batch request. MailChimp API enables max records is 500 per batch request (int, default: 500)
 - **sleep_between_requests_millis**: The time to sleep between requests to avoid flood MailChimp API (int, default: 3000)
 
@@ -38,6 +39,7 @@ out:
   list_id: 'XXXXXXXXXX'
   update_existing: false
   double_optin: false
+  atomic_upsert: false
   email_column: e-mail
   fname_column: first name
   lname_column: lname
