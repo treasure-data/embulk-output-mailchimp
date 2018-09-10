@@ -150,8 +150,7 @@ public class MailChimpOutputPluginDelegate
         if (!checkExistColumns(schema, task.getEmailColumn(), task.getFnameColumn(), task.getLnameColumn())) {
             throw new ConfigException("Columns ['email', 'fname', 'lname'] must not be null or empty string");
         }
-        if (task.getAtomicUpsert())
-        {
+        if (task.getAtomicUpsert()) {
             LOG.info(" Treating upsert as atomic operation");
         }
     }

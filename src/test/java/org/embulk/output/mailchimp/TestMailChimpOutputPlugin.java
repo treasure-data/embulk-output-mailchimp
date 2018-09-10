@@ -12,7 +12,6 @@ import org.embulk.config.ConfigSource;
 import org.embulk.config.ModelManager;
 import org.embulk.config.TaskReport;
 import org.embulk.config.TaskSource;
-import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
 import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.Schema;
