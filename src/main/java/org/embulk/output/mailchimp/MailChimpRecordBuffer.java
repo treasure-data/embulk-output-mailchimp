@@ -130,12 +130,7 @@ public class MailChimpRecordBuffer
                 uniqueRecords = new ArrayList<>();
                 duplicatedRecords = new ArrayList<>();
             }
-            // When atomic upsert is true, client expects all records are done properly.
-            if (task.getAtomicUpsert() && errorCount > 0) {
-                LOG.info("Job requires atomic operation for all records. And there were {} errors in processing => Error as job's status", errorCount);
-                throw Throwables.propagate(new DataException("Some records are not properly processed at MailChimp. See log for detail"));
-            }
-            return Exec.newTaskReport().set("pushed", totalCount);
+            return Exec.newTaskReport().set("pushed", totalCount).set("error_count", errorCount);
         }
         catch (JsonProcessingException jpe) {
             throw new DataException(jpe);
