@@ -185,14 +185,12 @@ public class MailChimpOutputPluginDelegate
                 totalError += taskReport.get(Integer.class, "error_count");
             }
         }
+        LOG.info("Pushed completed. {} records", totalInserted);
         // When atomic upsert is true, client expects all records are done properly.
         if (task.getAtomicUpsert() & totalError > 0) {
             LOG.info("Job requires atomic operation for all records. And there were {} errors in processing => Error as job's status", totalError);
             throw Throwables.propagate(new DataException("Some records are not properly processed at MailChimp. See log for detail"));
         }
-
-        LOG.info("Pushed completed. {} records", totalInserted);
-
         return Exec.newConfigDiff();
     }
 }
