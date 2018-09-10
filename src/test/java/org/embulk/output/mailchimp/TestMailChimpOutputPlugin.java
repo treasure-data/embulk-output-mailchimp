@@ -12,6 +12,7 @@ import org.embulk.config.ConfigSource;
 import org.embulk.config.ModelManager;
 import org.embulk.config.TaskReport;
 import org.embulk.config.TaskSource;
+import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
 import org.embulk.spi.OutputPlugin;
 import org.embulk.spi.Schema;
@@ -96,6 +97,12 @@ public class TestMailChimpOutputPlugin
     public void test_config_invalidWithEmptyListId()
     {
         ConfigSource config = baseConfig.set("list_id", "");
+        doSetUpSchemaAndRun(config, plugin);
+    }
+    @Test(expected = ConfigException.class)
+    public void test_config_atomicUpsert()
+    {
+        ConfigSource config = baseConfig.set("atomic_upsert", true);
         doSetUpSchemaAndRun(config, plugin);
     }
 
