@@ -1,6 +1,7 @@
 package org.embulk.output.mailchimp;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
 import org.embulk.base.restclient.RestClientOutputPluginDelegate;
 import org.embulk.base.restclient.RestClientOutputTaskBase;
 import org.embulk.base.restclient.jackson.JacksonServiceRequestMapper;
@@ -13,6 +14,7 @@ import org.embulk.config.ConfigDiff;
 import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
 import org.embulk.output.mailchimp.model.AuthMethod;
+import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.slf4j.Logger;
@@ -96,6 +98,10 @@ public class MailChimpOutputPluginDelegate
         @ConfigDefault("false")
         boolean getUpdateExisting();
 
+        @Config("atomic_upsert")
+        @ConfigDefault("false")
+        boolean getAtomicUpsert();
+
         @Config("replace_interests")
         @ConfigDefault("true")
         boolean getReplaceInterests();
@@ -146,6 +152,9 @@ public class MailChimpOutputPluginDelegate
         if (!checkExistColumns(schema, task.getEmailColumn(), task.getFnameColumn(), task.getLnameColumn())) {
             throw new ConfigException("Columns ['email', 'fname', 'lname'] must not be null or empty string");
         }
+        if (task.getAtomicUpsert()) {
+            LOG.info(" Treating upsert as atomic operation");
+        }
     }
 
     @Override
@@ -167,14 +176,21 @@ public class MailChimpOutputPluginDelegate
                                       final List<TaskReport> taskReports)
     {
         long totalInserted = 0;
+        int totalError = 0;
         for (TaskReport taskReport : taskReports) {
             if (taskReport.has("pushed")) {
                 totalInserted += taskReport.get(Long.class, "pushed");
             }
+            if (taskReport.has("error_count")) {
+                totalError += taskReport.get(Integer.class, "error_count");
+            }
         }
-
         LOG.info("Pushed completed. {} records", totalInserted);
-
+        // When atomic upsert is true, client expects all records are done properly.
+        if (task.getAtomicUpsert() && totalError > 0) {
+            LOG.info("Job requires atomic operation for all records. And there were {} errors in processing => Error as job's status", totalError);
+            throw Throwables.propagate(new DataException("Some records are not properly processed at MailChimp. See log for detail"));
+        }
         return Exec.newConfigDiff();
     }
 }

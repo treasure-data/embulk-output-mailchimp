@@ -1,7 +1,7 @@
 dist: precise
 language: java
 jdk:
-  - openjdk7
+  - oraclejdk8
 script:
   - ./gradlew clean checkstyle check jacocoTestReport
 addons:

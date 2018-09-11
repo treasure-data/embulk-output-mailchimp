@@ -54,6 +54,7 @@ public class MailChimpRecordBuffer
     private final ObjectMapper mapper;
     private final Schema schema;
     private int requestCount;
+    private int errorCount;
     private long totalCount;
     private List<JsonNode> records;
     private Map<String, Map<String, InterestResponse>> categories;
@@ -129,8 +130,7 @@ public class MailChimpRecordBuffer
                 uniqueRecords = new ArrayList<>();
                 duplicatedRecords = new ArrayList<>();
             }
-
-            return Exec.newTaskReport().set("pushed", totalCount);
+            return Exec.newTaskReport().set("pushed", totalCount).set("error_count", errorCount);
         }
         catch (JsonProcessingException jpe) {
             throw new DataException(jpe);
@@ -304,6 +304,7 @@ public class MailChimpRecordBuffer
                  records.size(), reportResponse.getTotalCreated(),
                  reportResponse.getTotalUpdated(),
                  reportResponse.getErrorCount(), System.currentTimeMillis() - startTime);
+        errorCount += reportResponse.getErrors().size();
         mailChimpClient.handleErrors(reportResponse.getErrors());
 
         mailChimpClient.avoidFloodAPI("Process next request", task.getSleepBetweenRequestsMillis());

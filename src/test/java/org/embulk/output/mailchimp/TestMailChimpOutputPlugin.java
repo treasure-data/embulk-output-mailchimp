@@ -98,6 +98,12 @@ public class TestMailChimpOutputPlugin
         ConfigSource config = baseConfig.set("list_id", "");
         doSetUpSchemaAndRun(config, plugin);
     }
+    @Test(expected = ConfigException.class)
+    public void test_config_atomicUpsert()
+    {
+        ConfigSource config = baseConfig.set("atomic_upsert", true);
+        doSetUpSchemaAndRun(config, plugin);
+    }
 
     @Test(expected = ConfigException.class)
     public void test_config_invalidWithColumnEmailRequires()
