@@ -33,9 +33,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
+import static java.lang.String.CASE_INSENSITIVE_ORDER;
+import static java.lang.String.format;
 import static org.embulk.output.mailchimp.MailChimpOutputPluginDelegate.PluginTask;
-import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.fromCommaSeparatedString;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.orderJsonNode;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.toJsonNode;
@@ -206,25 +208,37 @@ public class MailChimpRecordBuffer
 
                 // Update additional merge fields if exist
                 if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
-                    for (final Column column : schema.getColumns()) {
-                        if (!"".equals(containsCaseInsensitive(column.getName(), task.getMergeFields().get()))) {
-                            String value = input.hasNonNull(column.getName()) ? input.findValue(column.getName()).asText() : "";
+                    Map<String, String> columnNameLookup = new TreeMap<>(CASE_INSENSITIVE_ORDER);
+                    for (Column col : schema.getColumns()) {
+                        columnNameLookup.put(col.getName(), col.getName());
+                    }
+                    for (String field : task.getMergeFields().get()) {
+                        if (!columnNameLookup.containsKey(field)) {
+                            LOG.warn(format("Field '%s' is configured on data transfer but cannot be found on any columns.", field));
+                            continue;
+                        }
+                        String columnName = columnNameLookup.get(field);
+                        if (!availableMergeFields.containsKey(columnName.toLowerCase())) {
+                            LOG.warn(format("Field '%s' is configured on data transfer but is not predefined on Mailchimp.", field));
+                            continue;
+                        }
 
-                            // Try to convert to Json from string with the merge field's type is address
-                            if (availableMergeFields.get(column.getName().toLowerCase()).getType()
-                                    .equals(MergeField.MergeFieldType.ADDRESS.getType())) {
-                                JsonNode addressNode = toJsonNode(value);
-                                if (addressNode instanceof NullNode) {
-                                    mergeFields.put(column.getName().toUpperCase(), value);
-                                }
-                                else {
-                                    mergeFields.set(column.getName().toUpperCase(),
-                                                    orderJsonNode(addressNode, AddressMergeFieldAttribute.values()));
-                                }
+                        String value = input.hasNonNull(columnName) ? input.findValue(columnName).asText() : "";
+
+                        // Try to convert to Json from string with the merge field's type is address
+                        if (availableMergeFields.get(columnName).getType()
+                                .equals(MergeField.MergeFieldType.ADDRESS.getType())) {
+                            JsonNode addressNode = toJsonNode(value);
+                            if (addressNode instanceof NullNode) {
+                                mergeFields.put(columnName.toUpperCase(), value);
                             }
                             else {
-                                mergeFields.put(column.getName().toUpperCase(), value);
+                                mergeFields.set(columnName.toUpperCase(),
+                                        orderJsonNode(addressNode, AddressMergeFieldAttribute.values()));
                             }
+                        }
+                        else {
+                            mergeFields.put(columnName.toUpperCase(), value);
                         }
                     }
                 }
