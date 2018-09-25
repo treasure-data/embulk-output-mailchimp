@@ -45,15 +45,14 @@ public final class MailChimpHelper
      * @param list the list
      * @return the boolean
      */
-    public static String containsCaseInsensitive(final String s, final List<String> list)
+    public static boolean containsCaseInsensitive(final String s, final List<String> list)
     {
         for (String string : list) {
             if (string.equalsIgnoreCase(s)) {
-                return string;
+                return true;
             }
         }
-
-        return "";
+        return false;
     }
 
     /**

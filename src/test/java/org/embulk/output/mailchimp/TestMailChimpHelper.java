@@ -20,6 +20,7 @@ import static org.embulk.output.mailchimp.helper.MailChimpHelper.orderJsonNode;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.toJsonNode;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Created by thangnc on 4/26/17.
@@ -37,8 +38,7 @@ public class TestMailChimpHelper
     @Test
     public void test_containsCaseInsensitive_validMergeFields()
     {
-        String expect = "United State";
-        assertEquals("Interest category should match", expect, containsCaseInsensitive("united state",
+        assertTrue("Interest category should match", containsCaseInsensitive("united state",
                                                                                        Arrays.asList("Donating", "United State")));
     }
 
