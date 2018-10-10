@@ -208,17 +208,20 @@ public class MailChimpRecordBuffer
 
                 // Update additional merge fields if exist
                 if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
-                    Map<String, String> columnNameLookup = new TreeMap<>(CASE_INSENSITIVE_ORDER);
+                    Map<String, String> columnNameCaseInsensitiveLookup = new TreeMap<>(CASE_INSENSITIVE_ORDER);
                     for (Column col : schema.getColumns()) {
-                        columnNameLookup.put(col.getName(), col.getName());
+                        columnNameCaseInsensitiveLookup.put(col.getName(), col.getName());
                     }
+                    Map<String, MergeField> availableMergeFieldsCaseInsensitiveLookup = new TreeMap<>(CASE_INSENSITIVE_ORDER);
+                    availableMergeFieldsCaseInsensitiveLookup.putAll(availableMergeFields);
+
                     for (String field : task.getMergeFields().get()) {
-                        if (!columnNameLookup.containsKey(field)) {
+                        if (!columnNameCaseInsensitiveLookup.containsKey(field)) {
                             LOG.warn(format("Field '%s' is configured on data transfer but cannot be found on any columns.", field));
                             continue;
                         }
-                        String columnName = columnNameLookup.get(field);
-                        if (!availableMergeFields.containsKey(columnName.toLowerCase())) {
+                        String columnName = columnNameCaseInsensitiveLookup.get(field);
+                        if (!availableMergeFieldsCaseInsensitiveLookup.containsKey(columnName)) {
                             LOG.warn(format("Field '%s' is configured on data transfer but is not predefined on Mailchimp.", field));
                             continue;
                         }
@@ -226,8 +229,7 @@ public class MailChimpRecordBuffer
                         String value = input.hasNonNull(columnName) ? input.findValue(columnName).asText() : "";
 
                         // Try to convert to Json from string with the merge field's type is address
-                        if (availableMergeFields.get(columnName).getType()
-                                .equals(MergeField.MergeFieldType.ADDRESS.getType())) {
+                        if (availableMergeFieldsCaseInsensitiveLookup.get(columnName).getType().equals(MergeField.MergeFieldType.ADDRESS.getType())) {
                             JsonNode addressNode = toJsonNode(value);
                             if (addressNode instanceof NullNode) {
                                 mergeFields.put(columnName.toUpperCase(), value);
