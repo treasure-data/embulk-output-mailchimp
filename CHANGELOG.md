@@ -1,3 +1,7 @@
+## 0.3.25 - 2018-10-11
+
+- Fixed an NPE when column names and merge tags are not exactly (case-sensitive) matched
+
 ## 0.3.23 - 2018-09-12
 - Introduce an option to fail the job when there is an error returning from Mailchimp. Previous versions marked the job as success with
 detail error in log
