@@ -299,12 +299,12 @@ public class MailChimpRecordBuffer
                     }
                 } // Otherwise, force update all categories include user-predefined categories
                 else if (task.getReplaceInterests()) {
-                    for (String existInterest : availableInterests.keySet()) {
-                        if (recordInterests.contains(existInterest)) {
-                            interests.put(availableInterests.get(existInterest).getId(), true);
+                    for (String availableInterest : availableInterests.keySet()) {
+                        if (recordInterests.contains(availableInterest)) {
+                            interests.put(availableInterests.get(availableInterest).getId(), true);
                         }
                         else {
-                            interests.put(availableInterests.get(existInterest).getId(), false);
+                            interests.put(availableInterests.get(availableInterest).getId(), false);
                         }
                     }
                 }
