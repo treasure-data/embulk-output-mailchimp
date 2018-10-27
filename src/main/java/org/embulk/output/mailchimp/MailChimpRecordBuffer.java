@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
@@ -276,8 +275,7 @@ public class MailChimpRecordBuffer
         };
     }
 
-    @VisibleForTesting
-    ObjectNode buildInterestCategories(final JsonNode input)
+    private ObjectNode buildInterestCategories(final JsonNode input)
     {
         ObjectNode interests = JsonNodeFactory.instance.objectNode();
 
