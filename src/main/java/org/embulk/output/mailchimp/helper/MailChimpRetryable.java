@@ -24,6 +24,7 @@ import java.text.MessageFormat;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
+import static com.google.common.base.Throwables.propagate;
 import static org.eclipse.jetty.http.HttpHeader.AUTHORIZATION;
 import static org.eclipse.jetty.http.HttpMethod.GET;
 import static org.eclipse.jetty.http.HttpMethod.POST;
@@ -64,41 +65,47 @@ public class MailChimpRetryable implements AutoCloseable
 
     private String sendRequest(final String path, final StringContentProvider contentProvider)
     {
-        return retryHelper.requestWithRetry(
-                new StringJetty92ResponseEntityReader(READER_TIMEOUT_MILLIS),
-                new Jetty92SingleRequester()
-                {
-                    @Override
-                    public void requestOnce(HttpClient client, Response.Listener responseListener)
+        try {
+            return retryHelper.requestWithRetry(
+                    new StringJetty92ResponseEntityReader(READER_TIMEOUT_MILLIS),
+                    new Jetty92SingleRequester()
                     {
-                        createTokenHolder(client);
-                        Request request = client.newRequest(tokenHolder.getEndpoint() + path)
-                                .header(AUTHORIZATION, authorizationHeader)
-                                .method(GET);
-                        if (contentProvider != null) {
-                            request = request.method(POST).content(contentProvider);
+                        @Override
+                        public void requestOnce(HttpClient client, Response.Listener responseListener)
+                        {
+                            createTokenHolder(client);
+                            Request request = client.newRequest(tokenHolder.getEndpoint() + "blashbalsh")
+                                    .header(AUTHORIZATION, authorizationHeader)
+                                    .method(GET);
+                            if (contentProvider != null) {
+                                request = request.method(POST).content(contentProvider);
+                            }
+                            request.send(responseListener);
                         }
-                        request.send(responseListener);
-                    }
 
-                    @Override
-                    protected boolean isResponseStatusToRetry(Response response)
-                    {
-                        // Retry if it's a server or rate limit exceeded error
-                        return (response.getStatus() != 500 && response.getStatus() / 100 != 4) || response.getStatus() == 429;
-                    }
-
-                    @Override
-                    protected boolean isExceptionToRetry(Exception exception)
-                    {
-                        // This check is to make sure if the original exception is retryable, i.e.
-                        // server not found, internal server error...
-                        if (exception instanceof ConfigException || exception instanceof ExecutionException) {
-                            return toRetry((Exception) exception.getCause());
+                        @Override
+                        protected boolean isResponseStatusToRetry(Response response)
+                        {
+                            // Retry if it's a server or rate limit exceeded error
+                            return (response.getStatus() != 500 && response.getStatus() / 100 != 4) || response.getStatus() == 429;
                         }
-                        return exception instanceof TimeoutException || super.isExceptionToRetry(exception);
-                    }
-                });
+
+                        @Override
+                        protected boolean isExceptionToRetry(Exception exception)
+                        {
+                            // This check is to make sure if the original exception is retryable, i.e.
+                            // server not found, internal server error...
+                            if (exception instanceof ConfigException || exception instanceof ExecutionException) {
+                                return toRetry((Exception) exception.getCause());
+                            }
+                            return exception instanceof TimeoutException || super.isExceptionToRetry(exception);
+                        }
+                    });
+        }
+        catch (HttpResponseException ex) {
+            LOG.error("Unexpected response from request to {}", path, ex);
+            throw propagate(ex);
+        }
     }
 
     @Override
