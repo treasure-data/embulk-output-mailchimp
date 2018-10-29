@@ -1,3 +1,7 @@
+## 0.3.27 - 2018-10-29
+
+- Quick fix a typo
+
 ## 0.3.26 - 2018-10-29
 
 - Fix an NPE when there isn't a column corresponds to a configured group ('category')
