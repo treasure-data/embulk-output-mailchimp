@@ -1,3 +1,7 @@
+## 0.3.26 - 2018-10-29
+
+- Fix an NPE when there isn't a column corresponds to a configured group ('category')
+
 ## 0.3.25 - 2018-10-11
 
 - Fixed an NPE when column names and merge tags are not exactly (case-sensitive) matched
