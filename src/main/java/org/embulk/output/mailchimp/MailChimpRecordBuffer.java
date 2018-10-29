@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import org.embulk.base.restclient.jackson.JacksonServiceRecord;
@@ -25,6 +26,8 @@ import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.slf4j.Logger;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,11 +37,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
+import static com.google.common.base.Joiner.on;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static java.lang.String.format;
 import static org.embulk.output.mailchimp.MailChimpOutputPluginDelegate.PluginTask;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.fromCommaSeparatedString;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.jsonGetIgnoreCase;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.orderJsonNode;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.toJsonNode;
 import static org.embulk.output.mailchimp.model.MemberStatus.PENDING;
@@ -168,6 +174,13 @@ public class MailChimpRecordBuffer
         // The reason why we put categories validation here because we can not share data between instance.
         if (categories == null) {
             categories = mailChimpClient.extractInterestCategoriesByGroupNames(task);
+
+            Set<String> categoriesNames = categories.keySet();
+            Set<String> columnNames = caseInsensitiveColumnNames();
+            if (!columnNames.containsAll(categoriesNames)) {
+                categoriesNames.removeAll(columnNames);
+                LOG.warn("Data column for category '{}' could not be found", on(", ").join(categoriesNames));
+            }
         }
 
         // Extract merge fields detail
@@ -249,7 +262,7 @@ public class MailChimpRecordBuffer
 
                 // Update interest categories if exist
                 if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
-                    property.set("interests", buildInterestCategories(task, input));
+                    property.set("interests", buildInterestCategories(input));
                 }
 
                 // Update language if exist
@@ -262,31 +275,36 @@ public class MailChimpRecordBuffer
         };
     }
 
-    private ObjectNode buildInterestCategories(final PluginTask task, final JsonNode input)
+    private ObjectNode buildInterestCategories(final JsonNode input)
     {
         ObjectNode interests = JsonNodeFactory.instance.objectNode();
 
         if (task.getGroupingColumns().isPresent()) {
             for (String category : task.getGroupingColumns().get()) {
-                String inputValue = input.findValue(category).asText();
-                List<String> interestValues = fromCommaSeparatedString(inputValue);
-                Map<String, InterestResponse> availableCategories = categories.get(category);
+                Optional<JsonNode> inputValue = jsonGetIgnoreCase(input, category);
+                if (!inputValue.isPresent()) {
+                    // Silently ignore if the grouping column is absent
+                    continue;
+                }
+                List<String> recordInterests = fromCommaSeparatedString(inputValue.get().asText());
+                // `categories` is guaranteed to contain the `category` as it already did an early check
+                Map<String, InterestResponse> availableInterests = categories.get(category);
 
                 // Only update user-predefined categories if replace interests != true
                 if (!task.getReplaceInterests()) {
-                    for (String interestValue : interestValues) {
-                        if (availableCategories.get(interestValue) != null) {
-                            interests.put(availableCategories.get(interestValue).getId(), true);
+                    for (String recordInterest : recordInterests) {
+                        if (availableInterests.get(recordInterest) != null) {
+                            interests.put(availableInterests.get(recordInterest).getId(), true);
                         }
                     }
                 } // Otherwise, force update all categories include user-predefined categories
                 else if (task.getReplaceInterests()) {
-                    for (String availableCategory : availableCategories.keySet()) {
-                        if (interestValues.contains(availableCategory)) {
-                            interests.put(availableCategories.get(availableCategory).getId(), true);
+                    for (String availableInterest : availableInterests.keySet()) {
+                        if (recordInterests.contains(availableInterest)) {
+                            interests.put(availableInterests.get(availableInterest).getId(), true);
                         }
                         else {
-                            interests.put(availableCategories.get(availableCategory).getId(), false);
+                            interests.put(availableInterests.get(availableInterest).getId(), false);
                         }
                     }
                 }
@@ -313,7 +331,8 @@ public class MailChimpRecordBuffer
     private void pushData() throws JsonProcessingException
     {
         long startTime = System.currentTimeMillis();
-        ObjectNode subscribers = processSubcribers(uniqueRecords, task);
+        ObjectNode subscribers =
+                processSubcribers(uniqueRecords, task);
         ReportResponse reportResponse = mailChimpClient.push(subscribers, task);
 
         LOG.info("Done with {} record(s). Response from MailChimp: {} records created, {} records updated, {} records failed. Batch took {} ms ",
@@ -339,5 +358,22 @@ public class MailChimpRecordBuffer
                 mailChimpClient.handleErrors(reportResponse.getErrors());
             }
         }
+    }
+
+    private Set<String> caseInsensitiveColumnNames()
+    {
+        Set<String> columns = new TreeSet<>(CASE_INSENSITIVE_ORDER);
+        columns.addAll(FluentIterable
+                .from(schema.getColumns())
+                .transform(new Function<Column, String>() {
+                    @Nullable
+                    @Override
+                    public String apply(@Nullable Column col)
+                    {
+                        return col.getName();
+                    }
+                })
+                .toSet());
+        return columns;
     }
 }

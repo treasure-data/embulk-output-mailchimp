@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
@@ -16,7 +17,10 @@ import org.embulk.output.mailchimp.model.AddressMergeFieldAttribute;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Created by thangnc on 4/26/17.
@@ -124,5 +128,18 @@ public final class MailChimpHelper
         }
 
         return orderedNode;
+    }
+
+    public static Optional<JsonNode> jsonGetIgnoreCase(JsonNode node, String fieldName)
+    {
+        requireNonNull(fieldName);
+        Iterator<String> fieldNames = node.fieldNames();
+        while (fieldNames.hasNext()) {
+            String curFieldName = fieldNames.next();
+            if (fieldName.equalsIgnoreCase((curFieldName))) {
+                return Optional.of(node.get(curFieldName));
+            }
+        }
+        return Optional.absent();
     }
 }
