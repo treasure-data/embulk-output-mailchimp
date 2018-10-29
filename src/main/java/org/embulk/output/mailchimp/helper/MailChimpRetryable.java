@@ -74,7 +74,7 @@ public class MailChimpRetryable implements AutoCloseable
                         public void requestOnce(HttpClient client, Response.Listener responseListener)
                         {
                             createTokenHolder(client);
-                            Request request = client.newRequest(tokenHolder.getEndpoint() + "blashbalsh")
+                            Request request = client.newRequest(tokenHolder.getEndpoint() + path)
                                     .header(AUTHORIZATION, authorizationHeader)
                                     .method(GET);
                             if (contentProvider != null) {
