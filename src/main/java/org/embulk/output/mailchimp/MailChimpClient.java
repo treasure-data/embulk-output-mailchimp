@@ -190,7 +190,7 @@ public class MailChimpClient
             Set<String> categoryNames = new HashSet<>(categories.keySet());
             if (!columnNames.containsAll(categoryNames)) {
                 categoryNames.removeAll(columnNames);
-                LOG.warn("Data column for category '{}' could not be found", on(", ").join(categoryNames));
+                LOG.warn("Data schema doesn't contain the task's grouping column", on(", ").join(categoryNames));
             }
 
             return categories;
