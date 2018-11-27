@@ -4,15 +4,20 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
 import org.embulk.output.mailchimp.helper.MailChimpHelper;
 import org.embulk.output.mailchimp.model.AddressMergeFieldAttribute;
+import org.embulk.spi.Column;
+import org.embulk.spi.Schema;
+import org.embulk.spi.type.Types;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.caseInsensitiveColumnNames;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.extractMemberStatus;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.maskEmail;
@@ -94,5 +99,13 @@ public class TestMailChimpHelper
         String expect = "{\"addr1\":\"1234\",\"addr2\":\"\",\"city\":\"mountain view\",\"state\":\"CA\",\"zip\":\"95869\",\"country\":\"US\"}";
         assertEquals("Should be JSON", ObjectNode.class, orderJsonNode(toJsonNode(given), attributes).getClass());
         assertEquals("Should be match", expect, orderJsonNode(toJsonNode(given), attributes).toString());
+    }
+
+    @Test
+    public void test_caseInsensitiveColumnNames()
+    {
+        Schema schema = new Schema(ImmutableList.of(
+                new Column(0, "InCONSisTENT", Types.LONG)));
+        assertTrue(caseInsensitiveColumnNames(schema).contains("inConsIstent"));
     }
 }

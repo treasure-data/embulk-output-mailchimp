@@ -26,6 +26,7 @@ import org.embulk.output.mailchimp.model.MergeFields;
 import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
+import org.embulk.spi.Schema;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -33,8 +34,13 @@ import javax.annotation.Nullable;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import static com.google.common.base.Joiner.on;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.caseInsensitiveColumnNames;
 
 /**
  * Created by thangnc on 4/25/17.
@@ -109,7 +115,8 @@ public class MailChimpClient
      * @return the map
      * @throws JsonProcessingException the json processing exception
      */
-    public Map<String, Map<String, InterestResponse>> extractInterestCategoriesByGroupNames(final PluginTask task)
+    public Map<String, Map<String, InterestResponse>> extractInterestCategoriesByGroupNames(final PluginTask task,
+                                                                                            Schema schema)
             throws JsonProcessingException
     {
         try (MailChimpRetryable retryable = new MailChimpRetryable(task)) {
@@ -176,6 +183,14 @@ public class MailChimpClient
                     categories.put(categoriesResponse.getTitle().toLowerCase(),
                                    convertInterestCategoryToMap(interestsResponse.getInterests()));
                 }
+            }
+
+            // Warn if schema doesn't have the task's grouping column
+            Set<String> columnNames = caseInsensitiveColumnNames(schema);
+            Set<String> categoryNames = new HashSet<>(categories.keySet());
+            if (!columnNames.containsAll(categoryNames)) {
+                categoryNames.removeAll(columnNames);
+                LOG.warn("Data column for category '{}' could not be found", on(", ").join(categoryNames));
             }
 
             return categories;
