@@ -175,7 +175,7 @@ public class MailChimpRecordBuffer
         if (categories == null) {
             categories = mailChimpClient.extractInterestCategoriesByGroupNames(task);
 
-            Set<String> categoriesNames = categories.keySet();
+            Set<String> categoriesNames = new HashSet<>(categories.keySet());
             Set<String> columnNames = caseInsensitiveColumnNames();
             if (!columnNames.containsAll(categoriesNames)) {
                 categoriesNames.removeAll(columnNames);
