@@ -121,9 +121,8 @@ public class MailChimpClient
     {
         try (MailChimpRetryable retryable = new MailChimpRetryable(task)) {
             Map<String, Map<String, InterestResponse>> categories = new HashMap<>();
+            List<String> taskGroupingColumns = task.getGroupingColumns().get();
             if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
-                List<String> interestCategoryNames = task.getGroupingColumns().get();
-
                 int count = 100;
                 int offset = 0;
                 int page = 1;
@@ -165,16 +164,16 @@ public class MailChimpClient
                         .transform(function)
                         .toList();
 
-                for (String category : interestCategoryNames) {
+                for (String category : taskGroupingColumns) {
                     if (!availableCategories.contains(category)) {
                         throw new ConfigException("Invalid interest category name: '" + category + "'");
                     }
                 }
 
                 for (CategoriesResponse categoriesResponse : allCategoriesResponse) {
-                    // Skip fetching interests if this category isn't specifed in the task's grouping column.
-                    // Assume the grouping columns are always in lower case (like `availableCategories` did)
-                    if (!interestCategoryNames.contains(categoriesResponse.getTitle().toLowerCase())) {
+                    // Skip fetching interests if this category isn't specified in the task's grouping column.
+                    // Assume task's grouping columns are always in lower case (like `availableCategories` did)
+                    if (!taskGroupingColumns.contains(categoriesResponse.getTitle().toLowerCase())) {
                         continue;
                     }
 
@@ -193,10 +192,10 @@ public class MailChimpClient
 
             // Warn if schema doesn't have the task's grouping column
             Set<String> columnNames = caseInsensitiveColumnNames(schema);
-            Set<String> categoryNames = new HashSet<>(categories.keySet());
-            if (!columnNames.containsAll(categoryNames)) {
-                categoryNames.removeAll(columnNames);
-                LOG.warn("Data schema doesn't contain the task's grouping column", on(", ").join(categoryNames));
+            Set<String> groupNames = new HashSet<>(taskGroupingColumns);
+            groupNames.removeAll(columnNames);
+            if (groupNames.size() > 0) {
+                LOG.warn("Data schema doesn't contain the task's grouping column(s): {}", on(", ").join(groupNames));
             }
 
             return categories;

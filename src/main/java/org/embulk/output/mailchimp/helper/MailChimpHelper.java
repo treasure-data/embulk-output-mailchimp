@@ -155,9 +155,8 @@ public final class MailChimpHelper
         columns.addAll(FluentIterable
                 .from(schema.getColumns())
                 .transform(new Function<Column, String>() {
-                    @Nullable
                     @Override
-                    public String apply(@Nullable Column col)
+                    public String apply(Column col)
                     {
                         return col.getName();
                     }
