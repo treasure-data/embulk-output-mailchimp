@@ -172,6 +172,12 @@ public class MailChimpClient
                 }
 
                 for (CategoriesResponse categoriesResponse : allCategoriesResponse) {
+                    // Skip fetching interests if this category isn't specifed in the task's grouping column.
+                    // Assume the grouping columns are always in lower case (like `availableCategories` did)
+                    if (!interestCategoryNames.contains(categoriesResponse.getTitle().toLowerCase())) {
+                        continue;
+                    }
+
                     String detailPath = MessageFormat.format("/lists/{0}/interest-categories/{1}/interests",
                                                              task.getListId(),
                                                              categoriesResponse.getId());
