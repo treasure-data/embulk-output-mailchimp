@@ -9,17 +9,23 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import org.embulk.output.mailchimp.model.AddressMergeFieldAttribute;
+import org.embulk.spi.Column;
+import org.embulk.spi.Schema;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
+import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -141,5 +147,21 @@ public final class MailChimpHelper
             }
         }
         return Optional.absent();
+    }
+
+    public static Set<String> caseInsensitiveColumnNames(Schema schema)
+    {
+        Set<String> columns = new TreeSet<>(CASE_INSENSITIVE_ORDER);
+        columns.addAll(FluentIterable
+                .from(schema.getColumns())
+                .transform(new Function<Column, String>() {
+                    @Override
+                    public String apply(Column col)
+                    {
+                        return col.getName();
+                    }
+                })
+                .toSet());
+        return columns;
     }
 }

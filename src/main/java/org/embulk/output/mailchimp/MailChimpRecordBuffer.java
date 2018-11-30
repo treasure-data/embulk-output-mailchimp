@@ -26,8 +26,6 @@ import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.slf4j.Logger;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,9 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 
-import static com.google.common.base.Joiner.on;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static java.lang.String.format;
 import static org.embulk.output.mailchimp.MailChimpOutputPluginDelegate.PluginTask;
@@ -173,14 +169,7 @@ public class MailChimpRecordBuffer
         // Should loop the names and get the id of interest categories.
         // The reason why we put categories validation here because we can not share data between instance.
         if (categories == null) {
-            categories = mailChimpClient.extractInterestCategoriesByGroupNames(task);
-
-            Set<String> categoriesNames = categories.keySet();
-            Set<String> columnNames = caseInsensitiveColumnNames();
-            if (!columnNames.containsAll(categoriesNames)) {
-                categoriesNames.removeAll(columnNames);
-                LOG.warn("Data column for category '{}' could not be found", on(", ").join(categoriesNames));
-            }
+            categories = mailChimpClient.extractInterestCategoriesByGroupNames(task, schema);
         }
 
         // Extract merge fields detail
@@ -358,22 +347,5 @@ public class MailChimpRecordBuffer
                 mailChimpClient.handleErrors(reportResponse.getErrors());
             }
         }
-    }
-
-    private Set<String> caseInsensitiveColumnNames()
-    {
-        Set<String> columns = new TreeSet<>(CASE_INSENSITIVE_ORDER);
-        columns.addAll(FluentIterable
-                .from(schema.getColumns())
-                .transform(new Function<Column, String>() {
-                    @Nullable
-                    @Override
-                    public String apply(@Nullable Column col)
-                    {
-                        return col.getName();
-                    }
-                })
-                .toSet());
-        return columns;
     }
 }
