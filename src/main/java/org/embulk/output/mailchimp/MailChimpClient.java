@@ -121,7 +121,6 @@ public class MailChimpClient
     {
         try (MailChimpRetryable retryable = new MailChimpRetryable(task)) {
             Map<String, Map<String, InterestResponse>> categories = new HashMap<>();
-            List<String> taskGroupingColumns = task.getGroupingColumns().get();
             if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
                 int count = 100;
                 int offset = 0;
@@ -129,6 +128,7 @@ public class MailChimpClient
                 boolean hasMore = true;
                 JsonNode response;
                 List<CategoriesResponse> allCategoriesResponse = new ArrayList<>();
+                List<String> taskGroupingColumns = task.getGroupingColumns().get();
 
                 while (hasMore) {
                     String path = MessageFormat.format("/lists/{0}/interest-categories?count={1}&offset={2}",
@@ -188,16 +188,15 @@ public class MailChimpClient
                     categories.put(categoriesResponse.getTitle().toLowerCase(),
                                    convertInterestCategoryToMap(interestsResponse.getInterests()));
                 }
-            }
 
-            // Warn if schema doesn't have the task's grouping column
-            Set<String> columnNames = caseInsensitiveColumnNames(schema);
-            Set<String> groupNames = new HashSet<>(taskGroupingColumns);
-            groupNames.removeAll(columnNames);
-            if (groupNames.size() > 0) {
-                LOG.warn("Data schema doesn't contain the task's grouping column(s): {}", on(", ").join(groupNames));
+                // Warn if schema doesn't have the task's grouping column
+                Set<String> columnNames = caseInsensitiveColumnNames(schema);
+                Set<String> groupNames = new HashSet<>(taskGroupingColumns);
+                groupNames.removeAll(columnNames);
+                if (groupNames.size() > 0) {
+                    LOG.warn("Data schema doesn't contain the task's grouping column(s): {}", on(", ").join(groupNames));
+                }
             }
-
             return categories;
         }
     }
