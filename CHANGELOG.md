@@ -1,3 +1,7 @@
+## 0.3.29 - 2018-11-30
+
+- Fix crashes when data schema doesn't contain all of the target Mailchimp list's groups
+
 ## 0.3.28 - 2018-10-29
 
 - Quick fix a typo
