@@ -39,17 +39,17 @@ public class MailChimpOutputPluginDelegate
     public interface PluginTask
             extends RestClientOutputTaskBase
     {
-        @Config("maximum_retries")
+        @Config("retry_limit")
         @ConfigDefault("6")
-        int getMaximumRetries();
+        int getRetryLimit();
 
-        @Config("initial_retry_interval_millis")
+        @Config("retry_initial_wait_msec")
         @ConfigDefault("1000")
-        int getInitialRetryIntervalMillis();
+        int getRetryInitialWaitMSec();
 
-        @Config("maximum_retry_interval_millis")
+        @Config("max_retry_wait_msec")
         @ConfigDefault("32000")
-        int getMaximumRetryIntervalMillis();
+        int getMaxRetryWaitMSec();
 
         @Config("timeout_millis")
         @ConfigDefault("60000")
