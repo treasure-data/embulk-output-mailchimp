@@ -44,9 +44,9 @@ public class MailChimpRetryable implements AutoCloseable
 
     public MailChimpRetryable(final PluginTask pluginTask)
     {
-        this.retryHelper = new Jetty92RetryHelper(pluginTask.getMaximumRetries(),
-                                                  pluginTask.getInitialRetryIntervalMillis(),
-                                                  pluginTask.getMaximumRetryIntervalMillis(),
+        this.retryHelper = new Jetty92RetryHelper(pluginTask.getRetryLimit(),
+                                                  pluginTask.getRetryInitialWaitMSec(),
+                                                  pluginTask.getMaxRetryWaitMSec(),
                                                   new DefaultJetty92ClientCreator(pluginTask.getTimeoutMillis(),
                                                                                   pluginTask.getTimeoutMillis()));
         this.pluginTask = pluginTask;
