@@ -1,30 +1,37 @@
 package org.embulk.output.mailchimp.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.List;
+
 /**
- * Created by thangnc on 5/5/17.
+ * Created by thangnc on 5/8/17.
  */
 public class CategoriesResponse
 {
-    private String id;
-    private String title;
+    @JsonProperty("categories")
+    private List<Category> categories;
 
-    public String getId()
+    @JsonProperty("total_items")
+    private int totalItems;
+
+    public List<Category> getCategories()
     {
-        return id;
+        return categories;
     }
 
-    public void setId(String id)
+    public void setCategories(List<Category> categories)
     {
-        this.id = id;
+        this.categories = categories;
     }
 
-    public String getTitle()
+    public int getTotalItems()
     {
-        return title;
+        return totalItems;
     }
 
-    public void setTitle(String title)
+    public void setTotalItems(int totalItems)
     {
-        this.title = title;
+        this.totalItems = totalItems;
     }
 }

@@ -10,15 +10,28 @@ import java.util.List;
 public class InterestsResponse
 {
     @JsonProperty("interests")
-    private List<InterestResponse> interests;
+    private List<Interest> interests;
 
-    public List<InterestResponse> getInterests()
+    @JsonProperty("total_items")
+    private int totalItems;
+
+    public List<Interest> getInterests()
     {
         return interests;
     }
 
-    public void setInterests(List<InterestResponse> interests)
+    public void setInterests(List<Interest> interests)
     {
         this.interests = interests;
+    }
+
+    public int getTotalItems()
+    {
+        return totalItems;
+    }
+
+    public void setTotalItems(int totalItems)
+    {
+        this.totalItems = totalItems;
     }
 }

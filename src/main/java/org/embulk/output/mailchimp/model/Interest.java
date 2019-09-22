@@ -3,7 +3,7 @@ package org.embulk.output.mailchimp.model;
 /**
  * Created by thangnc on 5/8/17.
  */
-public class InterestResponse
+public class Interest
 {
     private String id;
     private String name;
