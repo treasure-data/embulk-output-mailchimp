@@ -17,7 +17,6 @@ import org.embulk.spi.Exec;
 import org.embulk.util.retryhelper.jetty92.DefaultJetty92ClientCreator;
 import org.embulk.util.retryhelper.jetty92.Jetty92RetryHelper;
 import org.embulk.util.retryhelper.jetty92.Jetty92SingleRequester;
-import org.embulk.util.retryhelper.jetty92.StringJetty92ResponseEntityReader;
 import org.slf4j.Logger;
 
 import java.text.MessageFormat;
@@ -67,7 +66,7 @@ public class MailChimpRetryable implements AutoCloseable
     {
         try {
             return retryHelper.requestWithRetry(
-                    new StringJetty92ResponseEntityReader(READER_TIMEOUT_MILLIS),
+                    new PatchedStringJetty92ResponseEntityReader(READER_TIMEOUT_MILLIS),
                     new Jetty92SingleRequester()
                     {
                         @Override
