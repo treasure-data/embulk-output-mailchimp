@@ -207,7 +207,6 @@ public class MailChimpClient
             catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            System.out.println(interestsResponse);
             interests.addAll(interestsResponse.getInterests());
             offset += batchSize;
         }
