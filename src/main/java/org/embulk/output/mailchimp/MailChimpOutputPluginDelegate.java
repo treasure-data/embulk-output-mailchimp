@@ -19,9 +19,13 @@ import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.slf4j.Logger;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
+import static com.google.common.base.Joiner.on;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.embulk.output.mailchimp.helper.MailChimpHelper.caseInsensitiveColumnNames;
 import static org.embulk.output.mailchimp.validation.ColumnDataValidator.checkExistColumns;
 
 /**
@@ -154,6 +158,16 @@ public class MailChimpOutputPluginDelegate
         }
         if (task.getAtomicUpsert()) {
             LOG.info(" Treating upsert as atomic operation");
+        }
+
+        // Warn if schema doesn't have the task's grouping column (Group Category)
+        if (task.getGroupingColumns().isPresent()
+                && !task.getGroupingColumns().get().isEmpty()) {
+            Set<String> categoryNames = new HashSet<>(task.getGroupingColumns().get());
+            categoryNames.removeAll(caseInsensitiveColumnNames(schema));
+            if (categoryNames.size() > 0) {
+                LOG.warn("Data schema doesn't contain the task's grouping column(s): {}", on(", ").join(categoryNames));
+            }
         }
     }
 

@@ -135,14 +135,6 @@ public class MailChimpClient
                         category.getTitle().toLowerCase(),
                         convertInterestCategoryToMap(fetchInterests(retryable, task.getListId(), category.getId())));
             }
-
-            // Warn if schema doesn't have the task's grouping column
-            Set<String> columnNames = caseInsensitiveColumnNames(schema);
-            Set<String> groupNames = new HashSet<>(task.getGroupingColumns().get());
-            groupNames.removeAll(columnNames);
-            if (groupNames.size() > 0) {
-                LOG.warn("Data schema doesn't contain the task's grouping column(s): {}", on(", ").join(groupNames));
-            }
             return interestsByCategory;
         }
     }
