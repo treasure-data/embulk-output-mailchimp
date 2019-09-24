@@ -174,7 +174,7 @@ public class MailChimpRecordBuffer
 
         // Extract merge fields detail
         if (availableMergeFields == null) {
-            availableMergeFields = mailChimpClient.extractMergeFieldsFromList(task);
+            availableMergeFields = mailChimpClient.mergeFieldByTag(task);
         }
 
         // Required merge fields
