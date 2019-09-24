@@ -179,7 +179,7 @@ public class MailChimpClient
 
     /**
      * Like {@link MailChimpClient#fetch(MailChimpRetryable, String, String, Class)},
-     * with a automatically created MailchimpRetryable
+     * with an automatically created MailchimpRetryable
      */
     private <T> List<T> fetch(PluginTask task,
                               String url,
