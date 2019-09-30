@@ -3,7 +3,7 @@ package org.embulk.output.mailchimp.model;
 /**
  * Created by thangnc on 5/5/17.
  */
-public class CategoriesResponse
+public class Category
 {
     private String id;
     private String title;

@@ -17,7 +17,7 @@ import org.embulk.base.restclient.record.RecordBuffer;
 import org.embulk.base.restclient.record.ServiceRecord;
 import org.embulk.config.TaskReport;
 import org.embulk.output.mailchimp.model.AddressMergeFieldAttribute;
-import org.embulk.output.mailchimp.model.InterestResponse;
+import org.embulk.output.mailchimp.model.Interest;
 import org.embulk.output.mailchimp.model.MergeField;
 import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.Column;
@@ -61,7 +61,7 @@ public class MailChimpRecordBuffer
     private int errorCount;
     private long totalCount;
     private List<JsonNode> records;
-    private Map<String, Map<String, InterestResponse>> categories;
+    private Map<String, Map<String, Interest>> categories;
     private Map<String, MergeField> availableMergeFields;
     private List<JsonNode> uniqueRecords;
     private List<JsonNode> duplicatedRecords;
@@ -169,12 +169,12 @@ public class MailChimpRecordBuffer
         // Should loop the names and get the id of interest categories.
         // The reason why we put categories validation here because we can not share data between instance.
         if (categories == null) {
-            categories = mailChimpClient.extractInterestCategoriesByGroupNames(task, schema);
+            categories = mailChimpClient.interestsByCategory(task, schema);
         }
 
         // Extract merge fields detail
         if (availableMergeFields == null) {
-            availableMergeFields = mailChimpClient.extractMergeFieldsFromList(task);
+            availableMergeFields = mailChimpClient.mergeFieldByTag(task);
         }
 
         // Required merge fields
@@ -277,7 +277,7 @@ public class MailChimpRecordBuffer
                 }
                 List<String> recordInterests = fromCommaSeparatedString(inputValue.get().asText());
                 // `categories` is guaranteed to contain the `category` as it already did an early check
-                Map<String, InterestResponse> availableInterests = categories.get(category);
+                Map<String, Interest> availableInterests = categories.get(category);
 
                 // Only update user-predefined categories if replace interests != true
                 if (!task.getReplaceInterests()) {

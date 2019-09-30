@@ -3,12 +3,10 @@ package org.embulk.output.mailchimp;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import org.eclipse.jetty.client.HttpResponseException;
 import org.embulk.base.restclient.jackson.StringJsonParser;
@@ -16,13 +14,10 @@ import org.embulk.config.ConfigException;
 import org.embulk.output.mailchimp.MailChimpOutputPluginDelegate.PluginTask;
 import org.embulk.output.mailchimp.helper.MailChimpHelper;
 import org.embulk.output.mailchimp.helper.MailChimpRetryable;
-import org.embulk.output.mailchimp.model.CategoriesResponse;
+import org.embulk.output.mailchimp.model.Category;
 import org.embulk.output.mailchimp.model.ErrorResponse;
-import org.embulk.output.mailchimp.model.InterestCategoriesResponse;
-import org.embulk.output.mailchimp.model.InterestResponse;
-import org.embulk.output.mailchimp.model.InterestsResponse;
+import org.embulk.output.mailchimp.model.Interest;
 import org.embulk.output.mailchimp.model.MergeField;
-import org.embulk.output.mailchimp.model.MergeFields;
 import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.DataException;
 import org.embulk.spi.Exec;
@@ -31,16 +26,14 @@ import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
-import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import static com.google.common.base.Joiner.on;
-import static org.embulk.output.mailchimp.helper.MailChimpHelper.caseInsensitiveColumnNames;
+import static java.text.MessageFormat.format;
+import static java.util.Arrays.asList;
 
 /**
  * Created by thangnc on 4/25/17.
@@ -74,7 +67,7 @@ public class MailChimpClient
     public ReportResponse push(final ObjectNode node, PluginTask task) throws JsonProcessingException
     {
         try (MailChimpRetryable retryable = new MailChimpRetryable(task)) {
-            String response = retryable.post(MessageFormat.format("/lists/{0}", task.getListId()),
+            String response = retryable.post(format("/lists/{0}", task.getListId()),
                                              "application/json;utf-8",
                                              node.toString());
             if (response != null && !response.isEmpty()) {
@@ -96,7 +89,7 @@ public class MailChimpClient
             StringBuilder errorMessage = new StringBuilder();
 
             for (ErrorResponse errorResponse : errorResponses) {
-                errorMessage.append(MessageFormat.format("`{0}` failed cause `{1}`\n",
+                errorMessage.append(format("`{0}` failed cause `{1}`\n",
                                                          MailChimpHelper.maskEmail(errorResponse.getEmailAddress()),
                                                          MailChimpHelper.maskEmail(errorResponse.getError())));
             }
@@ -110,143 +103,128 @@ public class MailChimpClient
      * Extract interest categories by group names. Loop via categories and fetch category details
      * Reference: https://developer.mailchimp.com/documentation/mailchimp/reference/lists/interest-categories/#read-get_lists_list_id_interest_categories
      * https://developer.mailchimp.com/documentation/mailchimp/reference/lists/interest-categories/#read-get_lists_list_id_interest_categories_interest_category_id
-     *
-     * @param task the task
-     * @return the map
-     * @throws JsonProcessingException the json processing exception
      */
-    public Map<String, Map<String, InterestResponse>> extractInterestCategoriesByGroupNames(final PluginTask task,
-                                                                                            Schema schema)
-            throws JsonProcessingException
+    Map<String, Map<String, Interest>> interestsByCategory(final PluginTask task, Schema schema) throws JsonProcessingException
     {
+        if (!task.getGroupingColumns().isPresent() || task.getGroupingColumns().get().isEmpty()) {
+            return Collections.emptyMap();
+        }
         try (MailChimpRetryable retryable = new MailChimpRetryable(task)) {
-            Map<String, Map<String, InterestResponse>> categories = new HashMap<>();
-            if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
-                int count = 100;
-                int offset = 0;
-                int page = 1;
-                boolean hasMore = true;
-                JsonNode response;
-                List<CategoriesResponse> allCategoriesResponse = new ArrayList<>();
-                List<String> taskGroupingColumns = task.getGroupingColumns().get();
-
-                while (hasMore) {
-                    String path = MessageFormat.format("/lists/{0}/interest-categories?count={1}&offset={2}",
-                                                       task.getListId(),
-                                                       count,
-                                                       offset);
-                    response = jsonParser.parseJsonObject(retryable.get(path));
-                    InterestCategoriesResponse interestCategoriesResponse = mapper.treeToValue(response,
-                                                                                               InterestCategoriesResponse.class);
-
-                    allCategoriesResponse.addAll(interestCategoriesResponse.getCategories());
-                    if (hasMorePage(interestCategoriesResponse.getTotalItems(), count, page)) {
-                        offset = count;
-                        page++;
-                    }
-                    else {
-                        hasMore = false;
-                    }
+            List<Category> categories = fetchCategories(retryable, task.getListId(), task.getGroupingColumns().get());
+            Map<String, Map<String, Interest>> interestsByCategory = new HashMap<>();
+            for (Category category : categories) {
+                // Skip fetching interests if this category isn't specified in the task's grouping column.
+                // Assume task's grouping columns are always in lower case
+                if (!task.getGroupingColumns().get().contains(category.getTitle().toLowerCase())) {
+                    continue;
                 }
-
-                Function<CategoriesResponse, String> function = new Function<CategoriesResponse, String>()
-                {
-                    @Override
-                    public String apply(CategoriesResponse input)
-                    {
-                        return input.getTitle().toLowerCase();
-                    }
-                };
-
-                // Transform to a list of available category names and validate with data that user input
-                ImmutableList<String> availableCategories = FluentIterable
-                        .from(allCategoriesResponse)
-                        .transform(function)
-                        .toList();
-
-                for (String category : taskGroupingColumns) {
-                    if (!availableCategories.contains(category)) {
-                        throw new ConfigException("Invalid interest category name: '" + category + "'");
-                    }
-                }
-
-                for (CategoriesResponse categoriesResponse : allCategoriesResponse) {
-                    // Skip fetching interests if this category isn't specified in the task's grouping column.
-                    // Assume task's grouping columns are always in lower case (like `availableCategories` did)
-                    if (!taskGroupingColumns.contains(categoriesResponse.getTitle().toLowerCase())) {
-                        continue;
-                    }
-
-                    String detailPath = MessageFormat.format("/lists/{0}/interest-categories/{1}/interests",
-                                                             task.getListId(),
-                                                             categoriesResponse.getId());
-                    response = jsonParser.parseJsonObject(retryable.get(detailPath));
-
-                    // Avoid flood MailChimp API
-                    avoidFloodAPI("Fetching next category's interests", task.getSleepBetweenRequestsMillis());
-                    InterestsResponse interestsResponse = mapper.treeToValue(response, InterestsResponse.class);
-                    categories.put(categoriesResponse.getTitle().toLowerCase(),
-                                   convertInterestCategoryToMap(interestsResponse.getInterests()));
-                }
-
-                // Warn if schema doesn't have the task's grouping column
-                Set<String> columnNames = caseInsensitiveColumnNames(schema);
-                Set<String> groupNames = new HashSet<>(taskGroupingColumns);
-                groupNames.removeAll(columnNames);
-                if (groupNames.size() > 0) {
-                    LOG.warn("Data schema doesn't contain the task's grouping column(s): {}", on(", ").join(groupNames));
-                }
+                avoidFloodAPI("Fetching next category's interests", task.getSleepBetweenRequestsMillis());
+                interestsByCategory.put(
+                        category.getTitle().toLowerCase(),
+                        convertInterestCategoryToMap(fetchInterests(retryable, task.getListId(), category.getId())));
             }
-            return categories;
+            return interestsByCategory;
         }
     }
 
     /**
-     * Extract merge fields from the list, find correct merge fields from API and put into the map to use
-     * Reference: https://developer.mailchimp.com/documentation/mailchimp/reference/lists/merge-fields/#read-get_lists_list_id_merge_fields
-     *
-     * @param task the task
-     * @return the map
-     * @throws JsonProcessingException the json processing exception
+     * @throws ConfigException if task having unexist category
      */
-    public Map<String, MergeField> extractMergeFieldsFromList(PluginTask task) throws JsonProcessingException
+    private List<Category> fetchCategories(MailChimpRetryable retryable,
+                                           String listId,
+                                           List<String> taskCategories)
+            throws JsonProcessingException
     {
-        try (MailChimpRetryable retryable = new MailChimpRetryable(task)) {
-            int count = 100;
-            int offset = 0;
-            int page = 1;
-            boolean hasMore = true;
-            List<MergeField> allMergeFields = new ArrayList<>();
-
-            while (hasMore) {
-                String path = MessageFormat.format("/lists/{0}/merge-fields?count={1}&offset={2}",
-                                                   task.getListId(),
-                                                   count,
-                                                   offset);
-
-                JsonNode response = jsonParser.parseJsonObject(retryable.get(path));
-                MergeFields mergeFields = mapper.treeToValue(response,
-                                                             MergeFields.class);
-
-                allMergeFields.addAll(mergeFields.getMergeFields());
-
-                if (hasMorePage(mergeFields.getTotalItems(), count, page)) {
-                    offset = count;
-                    page++;
-                }
-                else {
-                    hasMore = false;
+        List<Category> categories = fetch(
+                retryable,
+                "/lists/" + listId + "/interest-categories",
+                "categories",
+                Category[].class);
+        // Fail early if one of the task's categories is not exist
+        taskCategories:
+        for (String taskCategoryName : taskCategories) {
+            for (Category category : categories) {
+                // Tasks's configured categories are (implicitly?) case-sensitive
+                if (category.getTitle().toLowerCase().equals(taskCategoryName)) {
+                    continue taskCategories;
                 }
             }
-
-            return convertMergeFieldToMap(allMergeFields);
+            throw new ConfigException("Invalid group category name: '" + taskCategoryName + "'");
         }
+        return categories;
+    }
+
+    private List<Interest> fetchInterests(MailChimpRetryable retryable,
+                                          String listId,
+                                          String categoryId)
+            throws JsonProcessingException
+    {
+        return fetch(retryable,
+                "/lists/" + listId + "/interest-categories/" + categoryId + "/interests",
+                "interests",
+                Interest[].class);
+    }
+    /**
+     * Extract merge fields from the list, find correct merge fields from API and put into the map to use
+     * Reference: https://developer.mailchimp.com/documentation/mailchimp/reference/lists/merge-fields/#read-get_lists_list_id_merge_fields
+     */
+    Map<String, MergeField> mergeFieldByTag(PluginTask task) throws JsonProcessingException
+    {
+        return convertMergeFieldToMap(
+                fetch(task,
+                        "/lists/" + task.getListId() + "/merge-fields",
+                        "merge_fields",
+                        MergeField[].class));
+    }
+
+    /**
+     * Like {@link MailChimpClient#fetch(MailChimpRetryable, String, String, Class)},
+     * with an automatically created MailchimpRetryable
+     */
+    private <T> List<T> fetch(PluginTask task,
+                              String url,
+                              String recordsAttribute,
+                              Class<T[]> entitiesClass)
+            throws JsonProcessingException
+    {
+        try (MailChimpRetryable retryable = new MailChimpRetryable(task)) {
+            return fetch(retryable, url, recordsAttribute, entitiesClass);
+        }
+    }
+    /**
+     * Fetch all (by pagination) records at the target URL,
+     * Assume that endpoint handles `count` and `offset` parameter and have a response scheme of:
+     *     {
+     *        recordsAttribute}: [...],
+     *        "total_items": 10
+     *     }
+     * @param recordsAttribute name of the attribute to extract records inside the response's body.
+     * @param entitiesClass *Array* class of the entity to deserialize into
+     */
+    private <T> List<T> fetch(MailChimpRetryable retryable,
+                              String url,
+                              String recordsAttribute,
+                              Class<T[]> entitiesClass)
+            throws JsonProcessingException
+    {
+        final int batchSize = 100;
+        int offset = 0;
+        List<T> entities = new ArrayList<>();
+        ObjectNode response;
+        do {
+            response = jsonParser.parseJsonObject(
+                    retryable.get(url + "?count=" + batchSize + "&offset=" + offset));
+            entities.addAll(asList(mapper.treeToValue(response.get(recordsAttribute), entitiesClass)));
+            offset += batchSize;
+        }
+        while (offset < response.get("total_items").asInt());
+        return entities;
     }
 
     private void findList(final PluginTask task)
     {
         try (MailChimpRetryable retryable = new MailChimpRetryable(task)) {
-            jsonParser.parseJsonObject(retryable.get(MessageFormat.format("/lists/{0}",
+            jsonParser.parseJsonObject(retryable.get(format("/lists/{0}",
                                                                           task.getListId())));
         }
         catch (HttpResponseException hre) {
@@ -254,18 +232,18 @@ public class MailChimpClient
         }
     }
 
-    private Map<String, InterestResponse> convertInterestCategoryToMap(final List<InterestResponse> interestResponseList)
+    private Map<String, Interest> convertInterestCategoryToMap(final List<Interest> interestList)
     {
-        Function<InterestResponse, String> function = new Function<InterestResponse, String>()
+        Function<Interest, String> function = new Function<Interest, String>()
         {
             @Override
-            public String apply(@Nullable InterestResponse input)
+            public String apply(@Nullable Interest input)
             {
                 return input.getName();
             }
         };
 
-        return Maps.uniqueIndex(FluentIterable.from(interestResponseList)
+        return Maps.uniqueIndex(FluentIterable.from(interestList)
                                         .toList(),
                                 function);
     }
