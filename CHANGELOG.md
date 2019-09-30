@@ -1,7 +1,11 @@
-## 0.3.30 - 2019-09-30
+## 0.3.31 - 2019-09-30
 
 - Fix: retries always fail
 - Fix: correct pagination
+
+## 0.3.30 - 2019-01-23
+
+- Renamed some configurations
 
 ## 0.3.29 - 2018-11-30
 
