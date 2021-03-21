@@ -8,10 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
 import org.embulk.base.restclient.jackson.JacksonServiceRecord;
 import org.embulk.base.restclient.record.RecordBuffer;
 import org.embulk.base.restclient.record.ServiceRecord;
@@ -22,22 +18,26 @@ import org.embulk.output.mailchimp.model.MergeField;
 import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.Column;
 import org.embulk.spi.DataException;
-import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static java.lang.String.format;
+import static java.util.Collections.singletonList;
+import static org.embulk.output.mailchimp.MailChimpOutputPlugin.CONFIG_MAPPER_FACTORY;
 import static org.embulk.output.mailchimp.MailChimpOutputPluginDelegate.PluginTask;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.fromCommaSeparatedString;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.jsonGetIgnoreCase;
@@ -52,8 +52,8 @@ import static org.embulk.output.mailchimp.model.MemberStatus.SUBSCRIBED;
 public class MailChimpRecordBuffer
         extends RecordBuffer
 {
-    private static final Logger LOG = Exec.getLogger(MailChimpRecordBuffer.class);
-    private final MailChimpOutputPluginDelegate.PluginTask task;
+    private static final Logger LOG = LoggerFactory.getLogger(MailChimpRecordBuffer.class);
+    private final PluginTask task;
     private final MailChimpClient mailChimpClient;
     private final ObjectMapper mapper;
     private final Schema schema;
@@ -115,11 +115,8 @@ public class MailChimpRecordBuffer
         catch (JsonProcessingException jpe) {
             throw new DataException(jpe);
         }
-        catch (ClassCastException ex) {
+        catch (ClassCastException | IOException ex) {
             throw new RuntimeException(ex);
-        }
-        catch (IOException ex) {
-            throw Throwables.propagate(ex);
         }
     }
 
@@ -134,13 +131,10 @@ public class MailChimpRecordBuffer
                 uniqueRecords = new ArrayList<>();
                 duplicatedRecords = new ArrayList<>();
             }
-            return Exec.newTaskReport().set("pushed", totalCount).set("error_count", errorCount);
+            return CONFIG_MAPPER_FACTORY.newTaskReport().set("pushed", totalCount).set("error_count", errorCount);
         }
         catch (JsonProcessingException jpe) {
             throw new DataException(jpe);
-        }
-        catch (Exception ex) {
-            throw Throwables.propagate(ex);
         }
     }
 
@@ -182,9 +176,9 @@ public class MailChimpRecordBuffer
         map.put("FNAME", task.getFnameColumn());
         map.put("LNAME", task.getLnameColumn());
 
-        List<JsonNode> subscribersList = FluentIterable.from(data)
-                .transform(contactMapper(map))
-                .toList();
+        List<JsonNode> subscribersList = data.stream()
+                .map(contactMapper(map))
+                .collect(Collectors.toList());
 
         ObjectNode subscribers = JsonNodeFactory.instance.objectNode();
         subscribers.putArray("members").addAll(subscribersList);
@@ -194,73 +188,68 @@ public class MailChimpRecordBuffer
 
     private Function<JsonNode, JsonNode> contactMapper(final Map<String, String> allowColumns)
     {
-        return new Function<JsonNode, JsonNode>()
-        {
-            @Override
-            public JsonNode apply(JsonNode input)
-            {
-                ObjectNode property = JsonNodeFactory.instance.objectNode();
-                property.put("email_address", input.findPath(task.getEmailColumn()).asText());
-                property.put("status", task.getDoubleOptIn() ? PENDING.getType() : SUBSCRIBED.getType());
-                ObjectNode mergeFields = JsonNodeFactory.instance.objectNode();
-                for (String allowColumn : allowColumns.keySet()) {
-                    String value = input.hasNonNull(allowColumns.get(allowColumn)) ? input.findValue(allowColumns.get(allowColumn)).asText() : "";
-                    mergeFields.put(allowColumn, value);
+        return input -> {
+            ObjectNode property = JsonNodeFactory.instance.objectNode();
+            property.put("email_address", input.findPath(task.getEmailColumn()).asText());
+            property.put("status", task.getDoubleOptIn() ? PENDING.getType() : SUBSCRIBED.getType());
+            ObjectNode mergeFields = JsonNodeFactory.instance.objectNode();
+            for (String allowColumn : allowColumns.keySet()) {
+                String value = input.hasNonNull(allowColumns.get(allowColumn)) ? input.findValue(allowColumns.get(allowColumn)).asText() : "";
+                mergeFields.put(allowColumn, value);
+            }
+
+            // Update additional merge fields if exist
+            if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
+                Map<String, String> columnNameCaseInsensitiveLookup = new TreeMap<>(CASE_INSENSITIVE_ORDER);
+                for (Column col : schema.getColumns()) {
+                    columnNameCaseInsensitiveLookup.put(col.getName(), col.getName());
                 }
+                Map<String, MergeField> availableMergeFieldsCaseInsensitiveLookup = new TreeMap<>(CASE_INSENSITIVE_ORDER);
+                availableMergeFieldsCaseInsensitiveLookup.putAll(availableMergeFields);
 
-                // Update additional merge fields if exist
-                if (task.getMergeFields().isPresent() && !task.getMergeFields().get().isEmpty()) {
-                    Map<String, String> columnNameCaseInsensitiveLookup = new TreeMap<>(CASE_INSENSITIVE_ORDER);
-                    for (Column col : schema.getColumns()) {
-                        columnNameCaseInsensitiveLookup.put(col.getName(), col.getName());
+                for (String field : task.getMergeFields().get()) {
+                    if (!columnNameCaseInsensitiveLookup.containsKey(field)) {
+                        LOG.warn(format("Field '%s' is configured on data transfer but cannot be found on any columns.", field));
+                        continue;
                     }
-                    Map<String, MergeField> availableMergeFieldsCaseInsensitiveLookup = new TreeMap<>(CASE_INSENSITIVE_ORDER);
-                    availableMergeFieldsCaseInsensitiveLookup.putAll(availableMergeFields);
+                    String columnName = columnNameCaseInsensitiveLookup.get(field);
+                    if (!availableMergeFieldsCaseInsensitiveLookup.containsKey(columnName)) {
+                        LOG.warn(format("Field '%s' is configured on data transfer but is not predefined on Mailchimp.", field));
+                        continue;
+                    }
 
-                    for (String field : task.getMergeFields().get()) {
-                        if (!columnNameCaseInsensitiveLookup.containsKey(field)) {
-                            LOG.warn(format("Field '%s' is configured on data transfer but cannot be found on any columns.", field));
-                            continue;
-                        }
-                        String columnName = columnNameCaseInsensitiveLookup.get(field);
-                        if (!availableMergeFieldsCaseInsensitiveLookup.containsKey(columnName)) {
-                            LOG.warn(format("Field '%s' is configured on data transfer but is not predefined on Mailchimp.", field));
-                            continue;
-                        }
+                    String value = input.hasNonNull(columnName) ? input.findValue(columnName).asText() : "";
 
-                        String value = input.hasNonNull(columnName) ? input.findValue(columnName).asText() : "";
-
-                        // Try to convert to Json from string with the merge field's type is address
-                        if (availableMergeFieldsCaseInsensitiveLookup.get(columnName).getType().equals(MergeField.MergeFieldType.ADDRESS.getType())) {
-                            JsonNode addressNode = toJsonNode(value);
-                            if (addressNode instanceof NullNode) {
-                                mergeFields.put(columnName.toUpperCase(), value);
-                            }
-                            else {
-                                mergeFields.set(columnName.toUpperCase(),
-                                        orderJsonNode(addressNode, AddressMergeFieldAttribute.values()));
-                            }
-                        }
-                        else {
+                    // Try to convert to Json from string with the merge field's type is address
+                    if (availableMergeFieldsCaseInsensitiveLookup.get(columnName).getType().equals(MergeField.MergeFieldType.ADDRESS.getType())) {
+                        JsonNode addressNode = toJsonNode(value);
+                        if (addressNode instanceof NullNode) {
                             mergeFields.put(columnName.toUpperCase(), value);
                         }
+                        else {
+                            mergeFields.set(columnName.toUpperCase(),
+                                    orderJsonNode(addressNode, AddressMergeFieldAttribute.values()));
+                        }
+                    }
+                    else {
+                        mergeFields.put(columnName.toUpperCase(), value);
                     }
                 }
-
-                property.set("merge_fields", mergeFields);
-
-                // Update interest categories if exist
-                if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
-                    property.set("interests", buildInterestCategories(input));
-                }
-
-                // Update language if exist
-                if (task.getLanguageColumn().isPresent() && !task.getLanguageColumn().get().isEmpty()) {
-                    property.put("language", input.findPath(task.getLanguageColumn().get()).asText());
-                }
-
-                return property;
             }
+
+            property.set("merge_fields", mergeFields);
+
+            // Update interest categories if exist
+            if (task.getGroupingColumns().isPresent() && !task.getGroupingColumns().get().isEmpty()) {
+                property.set("interests", buildInterestCategories(input));
+            }
+
+            // Update language if exist
+            if (task.getLanguageColumn().isPresent() && !task.getLanguageColumn().get().isEmpty()) {
+                property.put("language", input.findPath(task.getLanguageColumn().get()).asText());
+            }
+
+            return property;
         };
     }
 
@@ -337,7 +326,7 @@ public class MailChimpRecordBuffer
             LOG.info("Start to process {} duplicated record(s)", duplicatedRecords.size());
             for (JsonNode duplicatedRecord : duplicatedRecords) {
                 startTime = System.currentTimeMillis();
-                subscribers = processSubcribers(Arrays.asList(duplicatedRecord), task);
+                subscribers = processSubcribers(singletonList(duplicatedRecord), task);
                 reportResponse = mailChimpClient.push(subscribers, task);
 
                 LOG.info("Done. Response from MailChimp: {} records created, {} records updated, {} records failed. Batch took {} ms ",
