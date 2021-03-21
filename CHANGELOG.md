@@ -1,3 +1,11 @@
+## 0.3.31 - 2021-03-18
+
+- Upgrade `embulk-*` to `v0.10.25`.
+- Apply `embulk-util-config` (`v0.2.1`).
+- Upgrade Gradle to `6.6.1`.
+- Apply `org.embulk.embulk-plugins` Gradle plugin.
+- Miscellaneous code cleanup.
+
 ## 0.3.31 - 2019-09-30
 
 - Fix: retries always fail
