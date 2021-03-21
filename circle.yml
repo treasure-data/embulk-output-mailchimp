@@ -1,8 +1,9 @@
 machine:
   java:
-    version: openjdk8
+    version: openjdk7
   environment:
     TERM: "dumb"
+    EMBULK_OUTPUT_MAILCHIMP_TEST_CONFIG: "${HOME}/${TRAVIS_BUILD_DIR}/ci/travis_mailchimp.yml"
 
 test:
   override:

@@ -13,16 +13,17 @@ import org.eclipse.jetty.client.util.StringContentProvider;
 import org.embulk.base.restclient.jackson.StringJsonParser;
 import org.embulk.config.ConfigException;
 import org.embulk.output.mailchimp.MailChimpOutputPluginDelegate.PluginTask;
+import org.embulk.spi.Exec;
 import org.embulk.util.retryhelper.jetty92.DefaultJetty92ClientCreator;
 import org.embulk.util.retryhelper.jetty92.Jetty92RetryHelper;
 import org.embulk.util.retryhelper.jetty92.Jetty92SingleRequester;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.text.MessageFormat;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
+import static com.google.common.base.Throwables.propagate;
 import static org.eclipse.jetty.http.HttpHeader.AUTHORIZATION;
 import static org.eclipse.jetty.http.HttpMethod.GET;
 import static org.eclipse.jetty.http.HttpMethod.POST;
@@ -31,7 +32,7 @@ import static org.embulk.output.mailchimp.model.AuthMethod.OAUTH;
 
 public class MailChimpRetryable implements AutoCloseable
 {
-    private static final Logger LOG = LoggerFactory.getLogger(MailChimpRetryable.class);
+    private static final Logger LOG = Exec.getLogger(MailChimpRetryable.class);
     private static final int READER_TIMEOUT_MILLIS = 300000;
     private static final String API_VERSION = "3.0";
     private final Jetty92RetryHelper retryHelper;
@@ -102,7 +103,7 @@ public class MailChimpRetryable implements AutoCloseable
         }
         catch (HttpResponseException ex) {
             LOG.error("Unexpected response from request to {}", path, ex);
-            throw ex;
+            throw propagate(ex);
         }
     }
 
@@ -116,15 +117,18 @@ public class MailChimpRetryable implements AutoCloseable
 
     /**
      * MailChimp API v3 supports non expires access_token. Then no need refresh_token
+     *
+     * @param task
+     * @return
      */
     private String buildAuthorizationHeader(final PluginTask task)
     {
         switch (task.getAuthMethod()) {
             case OAUTH:
-                return "OAuth " + task.getAccessToken().orElse(null);
+                return "OAuth " + task.getAccessToken().orNull();
             case API_KEY:
                 return "Basic " + Base64Variants.MIME_NO_LINEFEEDS
-                        .encode(("apikey" + ":" + task.getApikey().orElse(null)).getBytes());
+                        .encode(("apikey" + ":" + task.getApikey().orNull()).getBytes());
             default:
                 throw new ConfigException("Not supported method");
         }
@@ -150,7 +154,7 @@ public class MailChimpRetryable implements AutoCloseable
                     ObjectNode objectNode = jsonParser.parseJsonObject(contentResponse.getContentAsString());
                     String endpoint = MessageFormat.format(Joiner.on("/").join("https://{0}.api.mailchimp.com", API_VERSION),
                                                            objectNode.get("dc").asText());
-                    tokenHolder = new TokenHolder(pluginTask.getAccessToken().orElse(null), null, endpoint);
+                    tokenHolder = new TokenHolder(pluginTask.getAccessToken().orNull(), null, endpoint);
                     return tokenHolder;
                 }
 
@@ -177,7 +181,7 @@ public class MailChimpRetryable implements AutoCloseable
                         .send();
 
                 if (contentResponse.getStatus() == 200) {
-                    tokenHolder = new TokenHolder(null, pluginTask.getApikey().orElse(null), endpoint);
+                    tokenHolder = new TokenHolder(null, pluginTask.getApikey().orNull(), endpoint);
                     return tokenHolder;
                 }
 

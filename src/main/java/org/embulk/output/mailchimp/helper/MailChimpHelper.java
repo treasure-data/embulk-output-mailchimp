@@ -6,7 +6,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
@@ -19,14 +22,11 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.function.Function;
 
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toSet;
 
 /**
  * Created by thangnc on 4/26/17.
@@ -83,7 +83,7 @@ public final class MailChimpHelper
             }
         };
 
-        return Multimaps.index(data, function::apply);
+        return Multimaps.index(data, function);
     }
 
     /**
@@ -130,7 +130,7 @@ public final class MailChimpHelper
         ObjectNode orderedNode = JsonNodeFactory.instance.objectNode();
         for (AddressMergeFieldAttribute attr : attrsInOrder) {
             orderedNode.put(attr.getName(),
-                    originalNode.findValue(attr.getName()) != null ? originalNode.findValue(attr.getName()).asText() : "");
+                            originalNode.findValue(attr.getName()) != null ? originalNode.findValue(attr.getName()).asText() : "");
         }
 
         return orderedNode;
@@ -146,17 +146,22 @@ public final class MailChimpHelper
                 return Optional.of(node.get(curFieldName));
             }
         }
-        return Optional.empty();
+        return Optional.absent();
     }
 
     public static Set<String> caseInsensitiveColumnNames(Schema schema)
     {
         Set<String> columns = new TreeSet<>(CASE_INSENSITIVE_ORDER);
-        columns.addAll(
-                schema.getColumns()
-                        .stream()
-                        .map(Column::getName)
-                        .collect(toSet()));
+        columns.addAll(FluentIterable
+                .from(schema.getColumns())
+                .transform(new Function<Column, String>() {
+                    @Override
+                    public String apply(Column col)
+                    {
+                        return col.getName();
+                    }
+                })
+                .toSet());
         return columns;
     }
 }

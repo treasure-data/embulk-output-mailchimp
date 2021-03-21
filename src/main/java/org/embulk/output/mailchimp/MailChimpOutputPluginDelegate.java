@@ -1,30 +1,30 @@
 package org.embulk.output.mailchimp;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
 import org.embulk.base.restclient.RestClientOutputPluginDelegate;
 import org.embulk.base.restclient.RestClientOutputTaskBase;
 import org.embulk.base.restclient.jackson.JacksonServiceRequestMapper;
 import org.embulk.base.restclient.jackson.JacksonTopLevelValueLocator;
 import org.embulk.base.restclient.jackson.scope.JacksonAllInObjectScope;
 import org.embulk.base.restclient.record.RecordBuffer;
+import org.embulk.config.Config;
+import org.embulk.config.ConfigDefault;
 import org.embulk.config.ConfigDiff;
 import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
 import org.embulk.output.mailchimp.model.AuthMethod;
 import org.embulk.spi.DataException;
+import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
-import org.embulk.util.config.Config;
-import org.embulk.util.config.ConfigDefault;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.base.Joiner.on;
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static org.embulk.output.mailchimp.MailChimpOutputPlugin.CONFIG_MAPPER_FACTORY;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.caseInsensitiveColumnNames;
 import static org.embulk.output.mailchimp.validation.ColumnDataValidator.checkExistColumns;
 
@@ -34,7 +34,7 @@ import static org.embulk.output.mailchimp.validation.ColumnDataValidator.checkEx
 public class MailChimpOutputPluginDelegate
         implements RestClientOutputPluginDelegate<MailChimpOutputPluginDelegate.PluginTask>
 {
-    private static final Logger LOG = LoggerFactory.getLogger(MailChimpOutputPluginDelegate.class);
+    private static final Logger LOG = Exec.getLogger(MailChimpOutputPluginDelegate.class);
 
     public MailChimpOutputPluginDelegate()
     {
@@ -126,6 +126,10 @@ public class MailChimpOutputPluginDelegate
     /**
      * Override @{@link RestClientOutputPluginDelegate#validateOutputTask(RestClientOutputTaskBase, Schema, int)}
      * This method not only validates required configurations but also validates required columns
+     *
+     * @param task
+     * @param schema
+     * @param taskCount
      */
     @Override
     public void validateOutputTask(final PluginTask task, final Schema schema, final int taskCount)
@@ -199,8 +203,8 @@ public class MailChimpOutputPluginDelegate
         // When atomic upsert is true, client expects all records are done properly.
         if (task.getAtomicUpsert() && totalError > 0) {
             LOG.info("Job requires atomic operation for all records. And there were {} errors in processing => Error as job's status", totalError);
-            throw new DataException("Some records are not properly processed at MailChimp. See log for detail");
+            throw Throwables.propagate(new DataException("Some records are not properly processed at MailChimp. See log for detail"));
         }
-        return CONFIG_MAPPER_FACTORY.newConfigDiff();
+        return Exec.newConfigDiff();
     }
 }
