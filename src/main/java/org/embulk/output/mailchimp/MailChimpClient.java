@@ -20,9 +20,9 @@ import org.embulk.output.mailchimp.model.Interest;
 import org.embulk.output.mailchimp.model.MergeField;
 import org.embulk.output.mailchimp.model.ReportResponse;
 import org.embulk.spi.DataException;
-import org.embulk.spi.Exec;
 import org.embulk.spi.Schema;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -40,7 +40,7 @@ import static java.util.Arrays.asList;
  */
 public class MailChimpClient
 {
-    private static final Logger LOG = Exec.getLogger(MailChimpClient.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MailChimpClient.class);
     private final ObjectMapper mapper = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, false);

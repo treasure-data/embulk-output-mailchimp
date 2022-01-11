@@ -24,13 +24,13 @@ embulkPlugin {
     type = "mailchimp"
 }
 
-def embulkVersion = '0.10.25'
+def embulkVersion = '0.10.28'
 
 dependencies {
     compileOnly "org.embulk:embulk-api:$embulkVersion"
     compileOnly "org.embulk:embulk-spi:$embulkVersion"
 
-    compile('org.embulk:embulk-util-config:0.2.1') {
+    compile('org.embulk:embulk-util-config:0.3.1') {
         // Conflict with Embulk Core
         exclude group: 'com.fasterxml.jackson.core', module: 'jackson-annotations'
         exclude group: 'com.fasterxml.jackson.core', module: 'jackson-core'
@@ -46,12 +46,8 @@ dependencies {
     compile 'com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.6.7'
     compile 'javax.validation:validation-api:1.1.0.Final'
 
-    compile('org.embulk:embulk-base-restclient:0.10.0') {
-        exclude group: 'org.msgpack', module: 'msgpack-core'
-    }
-    compile('org.embulk:embulk-util-retryhelper-jetty92:0.8.1') {
-        exclude group: 'org.slf4j', module: 'slf4j-api'
-    }
+    compile 'org.embulk:embulk-base-restclient:0.10.1'
+    compile 'org.embulk:embulk-util-retryhelper-jetty92:0.8.2'
 
     compile 'com.google.guava:guava:18.0'
     compile  "com.google.code.findbugs:annotations:3.0.1"
@@ -104,4 +100,9 @@ gem {
     summary = project.description
     homepage = "https://github.com/treasure-data/embulk-output-mailchimp"
     licenses = []
+}
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs << "-Xlint:deprecation" << "-Xlint:unchecked"
+    options.encoding = "UTF-8"
 }
