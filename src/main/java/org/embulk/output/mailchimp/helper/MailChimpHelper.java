@@ -49,44 +49,6 @@ public final class MailChimpHelper
     }
 
     /**
-     * This method help to get explicit merge fields with column schema without case-sensitive
-     *
-     * @param s    the s
-     * @param list the list
-     * @return the boolean
-     */
-    public static boolean containsCaseInsensitive(final String s, final List<String> list)
-    {
-        for (String string : list) {
-            if (string.equalsIgnoreCase(s)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Extract member status to validate.
-     *
-     * @param data the data
-     * @return the multimap
-     */
-    public static Multimap<String, JsonNode> extractMemberStatus(final List<JsonNode> data)
-    {
-        Function<JsonNode, String> function = new Function<JsonNode, String>()
-        {
-            @Nullable
-            @Override
-            public String apply(@Nullable JsonNode input)
-            {
-                return input != null ? input.findPath("status").asText() : "";
-            }
-        };
-
-        return Multimaps.index(data, function::apply);
-    }
-
-    /**
      * From comma separated string list.
      *
      * @param string the string

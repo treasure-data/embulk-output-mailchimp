@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 import org.embulk.output.mailchimp.helper.MailChimpHelper;
 import org.embulk.output.mailchimp.model.AddressMergeFieldAttribute;
 import org.embulk.spi.Column;
@@ -13,13 +14,14 @@ import org.embulk.spi.Schema;
 import org.embulk.spi.type.Types;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.caseInsensitiveColumnNames;
-import static org.embulk.output.mailchimp.helper.MailChimpHelper.containsCaseInsensitive;
-import static org.embulk.output.mailchimp.helper.MailChimpHelper.extractMemberStatus;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.maskEmail;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.orderJsonNode;
 import static org.embulk.output.mailchimp.helper.MailChimpHelper.toJsonNode;
@@ -107,5 +109,43 @@ public class TestMailChimpHelper
         Schema schema = new Schema(ImmutableList.of(
                 new Column(0, "InCONSisTENT", Types.LONG)));
         assertTrue(caseInsensitiveColumnNames(schema).contains("inConsIstent"));
+    }
+
+    /**
+     * Extract member status to validate.
+     *
+     * @param data the data
+     * @return the multimap
+     */
+    private Multimap<String, JsonNode> extractMemberStatus(final List<JsonNode> data)
+    {
+        Function<JsonNode, String> function = new Function<JsonNode, String>()
+        {
+            @Nullable
+            @Override
+            public String apply(@Nullable JsonNode input)
+            {
+                return input != null ? input.findPath("status").asText() : "";
+            }
+        };
+
+        return Multimaps.index(data, function::apply);
+    }
+
+    /**
+     * This method help to get explicit merge fields with column schema without case-sensitive
+     *
+     * @param s    the s
+     * @param list the list
+     * @return the boolean
+     */
+    private boolean containsCaseInsensitive(final String s, final List<String> list)
+    {
+        for (String string : list) {
+            if (string.equalsIgnoreCase(s)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
