@@ -9,7 +9,3 @@ test:
     - ./gradlew clean checkstyle check jacocoTestReport
   post:
     - cp -R build/reports/* $CIRCLE_ARTIFACTS
-
-notify:
-  webhooks:
-    - url: https://td-beda.herokuapp.com/circleci_callback
