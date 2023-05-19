@@ -20,13 +20,17 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build with testing
-        run: ./gradlew checkstyle test jacocoTestReport
+        run: ./gradlew check --console rich --info
 
       - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: tests
           path: ./build/reports/tests/test
+
+      - name: JaCoCo test report
+        if: success()
+        run: ./gradlew jacocoTestReport
 
       - uses: actions/upload-artifact@v3
         if: success()
