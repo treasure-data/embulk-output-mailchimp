@@ -3,23 +3,23 @@ package org.embulk.output.mailchimp.helper;
 import com.google.common.io.CharStreams;
 import org.eclipse.jetty.client.api.Response;
 import org.eclipse.jetty.client.util.InputStreamResponseListener;
-import org.embulk.util.retryhelper.jetty92.Jetty92ResponseReader;
+import org.embulk.util.retryhelper.jetty94.Jetty94ResponseReader;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A copy of {@link org.embulk.util.retryhelper.jetty92.StringJetty92ResponseEntityReader} with the only
- * modification is {@link PatchedStringJetty92ResponseEntityReader#getListener()} to return a new instance every time.
- * This might eventually get fixed upstream (Jetty92RetryHelper aware of Jetty92ResponseReader is stateful),
+ * A copy of {@link org.embulk.util.retryhelper.jetty94.StringJetty94ResponseEntityReader} with the only
+ * modification is {@link PatchedStringJetty94ResponseEntityReader#getListener()} to return a new instance every time.
+ * This might eventually get fixed upstream (Jetty94RetryHelper aware of Jetty94ResponseReader is stateful),
  */
-public class PatchedStringJetty92ResponseEntityReader implements Jetty92ResponseReader<String>
+public class PatchedStringJetty94ResponseEntityReader implements Jetty94ResponseReader<String>
 {
     private InputStreamResponseListener listener;
     private final long timeoutMillis;
 
-    public PatchedStringJetty92ResponseEntityReader(long timeoutMillis)
+    public PatchedStringJetty94ResponseEntityReader(long timeoutMillis)
     {
         this.listener = new InputStreamResponseListener();
         this.timeoutMillis = timeoutMillis;

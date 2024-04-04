@@ -1,3 +1,6 @@
+## 0.3.33 - 2024-04-03
+- Upgrade `jetty92` to `jetty94` to support TLS1.3
+
 ## 0.3.31 - 2021-03-18
 
 - Upgrade `embulk-*` to `v0.10.25`.

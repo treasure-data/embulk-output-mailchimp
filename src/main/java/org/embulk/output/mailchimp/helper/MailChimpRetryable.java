@@ -13,9 +13,9 @@ import org.eclipse.jetty.client.util.StringContentProvider;
 import org.embulk.base.restclient.jackson.StringJsonParser;
 import org.embulk.config.ConfigException;
 import org.embulk.output.mailchimp.MailChimpOutputPluginDelegate.PluginTask;
-import org.embulk.util.retryhelper.jetty92.DefaultJetty92ClientCreator;
-import org.embulk.util.retryhelper.jetty92.Jetty92RetryHelper;
-import org.embulk.util.retryhelper.jetty92.Jetty92SingleRequester;
+import org.embulk.util.retryhelper.jetty94.DefaultJetty94ClientCreator;
+import org.embulk.util.retryhelper.jetty94.Jetty94RetryHelper;
+import org.embulk.util.retryhelper.jetty94.Jetty94SingleRequester;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +34,7 @@ public class MailChimpRetryable implements AutoCloseable
     private static final Logger LOG = LoggerFactory.getLogger(MailChimpRetryable.class);
     private static final int READER_TIMEOUT_MILLIS = 300000;
     private static final String API_VERSION = "3.0";
-    private final Jetty92RetryHelper retryHelper;
+    private final Jetty94RetryHelper retryHelper;
     private final PluginTask pluginTask;
     private static TokenHolder tokenHolder;
     protected StringJsonParser jsonParser = new StringJsonParser();
@@ -42,10 +42,10 @@ public class MailChimpRetryable implements AutoCloseable
 
     public MailChimpRetryable(final PluginTask pluginTask)
     {
-        this.retryHelper = new Jetty92RetryHelper(pluginTask.getRetryLimit(),
+        this.retryHelper = new Jetty94RetryHelper(pluginTask.getRetryLimit(),
                                                   pluginTask.getRetryInitialWaitMSec(),
                                                   pluginTask.getMaxRetryWaitMSec(),
-                                                  new DefaultJetty92ClientCreator(pluginTask.getTimeoutMillis(),
+                                                  new DefaultJetty94ClientCreator(pluginTask.getTimeoutMillis(),
                                                                                   pluginTask.getTimeoutMillis()));
         this.pluginTask = pluginTask;
         authorizationHeader = buildAuthorizationHeader(pluginTask);
@@ -65,8 +65,8 @@ public class MailChimpRetryable implements AutoCloseable
     {
         try {
             return retryHelper.requestWithRetry(
-                    new PatchedStringJetty92ResponseEntityReader(READER_TIMEOUT_MILLIS),
-                    new Jetty92SingleRequester()
+                    new PatchedStringJetty94ResponseEntityReader(READER_TIMEOUT_MILLIS),
+                    new Jetty94SingleRequester()
                     {
                         @Override
                         public void requestOnce(HttpClient client, Response.Listener responseListener)
