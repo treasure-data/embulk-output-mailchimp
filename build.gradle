@@ -1,9 +1,11 @@
 plugins {
-    id "com.jfrog.bintray" version "1.7.3"
     id "java"
     id "checkstyle"
     id "jacoco"
-    id 'org.embulk.embulk-plugins' version '0.4.2'
+    id "org.embulk.embulk-plugins" version "0.4.2"
+    id "maven"
+    id 'maven-publish'
+    id "signing"
 }
 
 repositories {
